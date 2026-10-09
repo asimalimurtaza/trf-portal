@@ -2,8 +2,21 @@
 
 import React from 'react';
 import { useTRF } from '@/context/TRFContext';
-import { formatPKR, formatDate } from '@/lib/utils';
-import { Users, UserPlus, CheckCircle2, Clock, ShieldCheck, User } from 'lucide-react';
+import { formatDate } from '@/lib/utils';
+import { UserPlus, Check, Clock } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { motion } from 'framer-motion';
 
 interface MembersViewProps {
   onOpenAddMember: () => void;
@@ -13,130 +26,135 @@ export function MembersView({ onOpenAddMember }: MembersViewProps) {
   const { members, isManager, updateMemberJoiningFee, activeHeadcount } = useTRF();
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.18 }}
+      className="space-y-4"
+    >
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <Users className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-            Team Roster & Joining Fees
+          <h2 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+            Team & Joining Fees
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            {activeHeadcount} active team members. Joining fee is 1,000 PKR per new member.
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+            {activeHeadcount} team members • Standard joining fee: PKR 1,000 per new member
           </p>
         </div>
 
         {isManager && (
-          <button
+          <Button
+            size="sm"
             onClick={onOpenAddMember}
-            className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-xs transition-all flex items-center gap-2 self-start sm:self-auto"
+            className="gap-1.5 self-start sm:self-auto"
           >
-            <UserPlus className="h-4 w-4" />
+            <UserPlus className="h-3.5 w-3.5" />
             <span>Add Member</span>
-          </button>
+          </Button>
         )}
       </div>
 
-      {/* Clean Members Table */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 dark:bg-slate-950/70 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 uppercase tracking-wider text-[11px]">
-              <tr>
-                <th className="px-5 py-3.5 font-semibold">Member</th>
-                <th className="px-5 py-3.5 font-semibold">Department</th>
-                <th className="px-5 py-3.5 font-semibold">Role</th>
-                <th className="px-5 py-3.5 font-semibold">Birthday</th>
-                <th className="px-5 py-3.5 font-semibold">Joining Fee</th>
-                {isManager && <th className="px-5 py-3.5 font-semibold text-right">Action</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
+      {/* Roster Table */}
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Member</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Birthday</TableHead>
+                <TableHead>Joining Fee</TableHead>
+                {isManager && <TableHead className="text-right">Action</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {members.map((member) => {
                 const isPaid = member.joiningFeeStatus === 'paid';
                 const isPending = member.joiningFeeStatus === 'pending';
 
                 return (
-                  <tr key={member.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors">
+                  <TableRow key={member.id}>
                     {/* Member */}
-                    <td className="px-5 py-3.5 whitespace-nowrap">
-                      <div className="flex items-center gap-2.5">
-                        <img
-                          src={member.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
-                          alt={member.name}
-                          className="h-8 w-8 rounded-lg object-cover border border-slate-200 dark:border-slate-700"
-                        />
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={member.avatarUrl} alt={member.name} />
+                          <AvatarFallback className="text-[10px] uppercase">
+                            {member.name.slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
                         <div>
-                          <div className="font-bold text-slate-900 dark:text-white">{member.name}</div>
-                          <div className="text-[11px] text-slate-500">{member.designation}</div>
+                          <div className="font-medium text-xs text-zinc-900 dark:text-zinc-100">
+                            {member.name}
+                          </div>
+                          <div className="text-[11px] text-zinc-400">
+                            {member.designation}
+                          </div>
                         </div>
                       </div>
-                    </td>
+                    </TableCell>
 
                     {/* Department */}
-                    <td className="px-5 py-3.5 whitespace-nowrap text-slate-500 dark:text-slate-400">
+                    <TableCell className="text-xs text-zinc-500">
                       {member.department}
-                    </td>
+                    </TableCell>
 
                     {/* Role */}
-                    <td className="px-5 py-3.5 whitespace-nowrap">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                        member.role === 'manager'
-                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                      }`}>
-                        {member.role === 'manager' ? (
-                          <>
-                            <ShieldCheck className="h-3 w-3" /> TRF Manager
-                          </>
-                        ) : (
-                          <>
-                            <User className="h-3 w-3" /> Member
-                          </>
-                        )}
-                      </span>
-                    </td>
+                    <TableCell>
+                      <Badge
+                        variant={member.role === 'manager' ? 'default' : 'secondary'}
+                        className="text-[10px]"
+                      >
+                        {member.role === 'manager' ? 'Admin' : 'Member'}
+                      </Badge>
+                    </TableCell>
 
                     {/* Birthday */}
-                    <td className="px-5 py-3.5 whitespace-nowrap text-slate-500 dark:text-slate-400">
+                    <TableCell className="text-xs text-zinc-500 whitespace-nowrap">
                       {formatDate(member.birthDate)}
-                    </td>
+                    </TableCell>
 
-                    {/* Joining Fee Status */}
-                    <td className="px-5 py-3.5 whitespace-nowrap">
+                    {/* Joining Fee */}
+                    <TableCell>
                       {isPaid ? (
-                        <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Paid (1,000 PKR)
-                        </span>
+                        <div className="flex items-center gap-1.5 text-xs text-zinc-900 dark:text-zinc-100 font-medium">
+                          <Check className="h-3.5 w-3.5 text-zinc-500" />
+                          <span>Paid</span>
+                        </div>
                       ) : isPending ? (
-                        <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold">
-                          <Clock className="h-3.5 w-3.5 animate-pulse" /> Pending (1,000 PKR)
-                        </span>
+                        <Badge variant="outline" className="text-[10px] font-normal gap-1 border-dashed">
+                          <Clock className="h-3 w-3 text-zinc-400" />
+                          <span>Pending (1,000 PKR)</span>
+                        </Badge>
                       ) : (
-                        <span className="text-slate-400">Waived</span>
+                        <span className="text-xs text-zinc-400">Waived</span>
                       )}
-                    </td>
+                    </TableCell>
 
                     {/* Action */}
                     {isManager && (
-                      <td className="px-5 py-3.5 whitespace-nowrap text-right">
+                      <TableCell className="text-right">
                         {isPending && (
-                          <button
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
                             onClick={() => updateMemberJoiningFee(member.id, 'paid')}
-                            className="rounded-lg bg-emerald-600 hover:bg-emerald-500 px-2.5 py-1 text-xs font-bold text-white shadow-xs transition-colors"
                           >
                             Mark Paid
-                          </button>
+                          </Button>
                         )}
-                      </td>
+                      </TableCell>
                     )}
-                  </tr>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }

@@ -3,7 +3,17 @@
 import React, { useState } from 'react';
 import { useTRF } from '@/context/TRFContext';
 import { VenuePlace } from '@/types/trf';
-import { X, Compass } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface AddVenueModalProps {
   isOpen: boolean;
@@ -19,8 +29,6 @@ export function AddVenueModal({ isOpen, onClose }: AddVenueModalProps) {
   const [estimatedCostPerHead, setEstimatedCostPerHead] = useState('2000');
   const [description, setDescription] = useState('');
 
-  if (!isOpen) return null;
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !location.trim()) return;
@@ -33,122 +41,95 @@ export function AddVenueModal({ isOpen, onClose }: AddVenueModalProps) {
       description: description.trim(),
     });
 
+    setName('');
+    setLocation('');
+    setDescription('');
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
-              <Compass className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Suggest Hangout Spot</h3>
-              <p className="text-xs text-slate-500">Add a destination for the team to vote on</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Suggest Hangout Spot</DialogTitle>
+          <DialogDescription>
+            Add a destination for the team to vote on
+          </DialogDescription>
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Venue Name *
-            </label>
-            <input
-              type="text"
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          <div className="space-y-1.5">
+            <Label htmlFor="venue-name">Venue Name *</Label>
+            <Input
+              id="venue-name"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Roasters, Monal, Super Space"
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-cyan-500 focus:outline-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Category
-              </label>
+            <div className="space-y-1.5">
+              <Label htmlFor="venue-category">Category</Label>
               <select
+                id="venue-category"
                 value={category}
                 onChange={(e) => setCategory(e.target.value as VenuePlace['category'])}
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:border-cyan-500 focus:outline-none"
+                className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <option value="restaurant">Restaurant</option>
-                <option value="cafe">Cafe / Hi-Tea</option>
-                <option value="gaming">Gaming & Arcade</option>
-                <option value="adventure">Bowling / Adventure</option>
-                <option value="outdoor">Outdoor / BBQ</option>
+                <option value="restaurant" className="bg-background">Restaurant</option>
+                <option value="cafe" className="bg-background">Cafe / Hi-Tea</option>
+                <option value="gaming" className="bg-background">Gaming & Arcade</option>
+                <option value="adventure" className="bg-background">Bowling / Adventure</option>
+                <option value="outdoor" className="bg-background">Outdoor / BBQ</option>
               </select>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Est. Cost (PKR/head)
-              </label>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="venue-cost">Est. Cost (PKR/head)</Label>
+              <Input
+                id="venue-cost"
                 type="number"
                 required
                 min="200"
                 step="100"
                 value={estimatedCostPerHead}
                 onChange={(e) => setEstimatedCostPerHead(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:border-cyan-500 focus:outline-none"
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Location / City *
-            </label>
-            <input
-              type="text"
+          <div className="space-y-1.5">
+            <Label htmlFor="venue-location">Location / City *</Label>
+            <Input
+              id="venue-location"
               required
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="e.g. Blue Area, Islamabad"
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-cyan-500 focus:outline-none"
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Description
-            </label>
-            <textarea
-              rows={2}
+          <div className="space-y-1.5">
+            <Label htmlFor="venue-desc">Description</Label>
+            <Input
+              id="venue-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Why should the team visit here?"
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-cyan-500 focus:outline-none"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl px-4 py-2 text-xs font-medium text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
-            >
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded-xl bg-cyan-600 hover:bg-cyan-500 px-5 py-2 text-xs font-bold text-white shadow-xs transition-all"
-            >
-              Add Venue
-            </button>
-          </div>
+            </Button>
+            <Button type="submit">
+              Suggest Spot
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -1,9 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTRF } from '@/context/TRFContext';
 import { TransactionCategory } from '@/types/trf';
-import { X, Receipt, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface AddTransactionModalProps {
   isOpen: boolean;
@@ -18,14 +28,12 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('2026-10-09');
-
-  React.useEffect(() => {
-    setDate(new Date().toISOString().split('T')[0]);
-  }, []);
   const [description, setDescription] = useState('');
   const [relatedMemberId, setRelatedMemberId] = useState('');
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    setDate(new Date().toISOString().split('T')[0]);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,81 +56,60 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <Receipt className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Log Fund Transaction</h3>
-              <p className="text-xs text-slate-500">Record an expense or manual fund deposit</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Log Fund Transaction</DialogTitle>
+          <DialogDescription>
+            Record an expense withdrawal or incoming fund contribution
+          </DialogDescription>
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3.5">
           {/* Type Toggle */}
-          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
-            <button
+          <div className="grid grid-cols-2 gap-2 p-1 rounded-lg border border-border bg-muted/50">
+            <Button
               type="button"
+              variant={type === 'outflow' ? 'default' : 'ghost'}
+              size="sm"
               onClick={() => {
                 setType('outflow');
                 setCategory('team_dinner');
               }}
-              className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${
-                type === 'outflow'
-                  ? 'bg-rose-600 text-white shadow-xs'
-                  : 'text-slate-500 dark:text-slate-400'
-              }`}
+              className="text-xs h-8"
             >
-              <ArrowDownRight className="h-4 w-4" />
-              <span>Outflow (Expense)</span>
-            </button>
-            <button
+              Outflow (Expense)
+            </Button>
+            <Button
               type="button"
+              variant={type === 'inflow' ? 'default' : 'ghost'}
+              size="sm"
               onClick={() => {
                 setType('inflow');
                 setCategory('treat_event');
               }}
-              className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${
-                type === 'inflow'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-500 dark:text-slate-400'
-              }`}
+              className="text-xs h-8"
             >
-              <ArrowUpRight className="h-4 w-4" />
-              <span>Inflow (Deposit / Treat)</span>
-            </button>
+              Inflow (Deposit)
+            </Button>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Title *
-            </label>
-            <input
-              type="text"
+          <div className="space-y-1.5">
+            <Label htmlFor="tx-title">Title *</Label>
+            <Input
+              id="tx-title"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Dinner at Roasters, Birthday Cake"
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-emerald-500 focus:outline-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Amount (PKR) *
-              </label>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="tx-amount">Amount (PKR) *</Label>
+              <Input
+                id="tx-amount"
                 type="number"
                 required
                 min="1"
@@ -130,100 +117,85 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="4500"
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-emerald-500 focus:outline-none"
               />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Date *
-              </label>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="tx-date">Date *</Label>
+              <Input
+                id="tx-date"
                 type="date"
                 required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Category
-            </label>
+          <div className="space-y-1.5">
+            <Label htmlFor="tx-category">Category</Label>
             <select
+              id="tx-category"
               value={category}
               onChange={(e) => setCategory(e.target.value as TransactionCategory)}
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
+              className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               {type === 'outflow' ? (
                 <>
-                  <option value="team_dinner">Team Dinner / Lunch</option>
-                  <option value="snacks_refreshment">Snacks, Tea & Refreshments</option>
-                  <option value="birthday_cake">Birthday Cake & Celebration</option>
-                  <option value="activity_outing">Outing / Gaming / Bowling</option>
-                  <option value="miscellaneous">Miscellaneous</option>
+                  <option value="team_dinner" className="bg-background">Team Dinner / Lunch</option>
+                  <option value="snacks_refreshment" className="bg-background">Snacks & Refreshments</option>
+                  <option value="birthday_cake" className="bg-background">Birthday Cake</option>
+                  <option value="activity_outing" className="bg-background">Outing / Bowling</option>
+                  <option value="miscellaneous" className="bg-background">Miscellaneous</option>
                 </>
               ) : (
                 <>
-                  <option value="company_claim">Company Allowance (1,400)</option>
-                  <option value="joining_fee">Joining Fee</option>
-                  <option value="treat_event">Member Treat / Gadget</option>
-                  <option value="fine_penalty">Standup Fine</option>
-                  <option value="miscellaneous">Other Deposit</option>
+                  <option value="company_claim" className="bg-background">Company Allowance (1,400)</option>
+                  <option value="joining_fee" className="bg-background">Joining Fee</option>
+                  <option value="treat_event" className="bg-background">Member Treat / Gadget</option>
+                  <option value="fine_penalty" className="bg-background">Standup Fine</option>
+                  <option value="miscellaneous" className="bg-background">Other Deposit</option>
                 </>
               )}
             </select>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Associated Member (Optional)
-            </label>
+          <div className="space-y-1.5">
+            <Label htmlFor="tx-member">Associated Member (Optional)</Label>
             <select
+              id="tx-member"
               value={relatedMemberId}
               onChange={(e) => setRelatedMemberId(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
+              className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
-              <option value="">None / Whole Team</option>
+              <option value="" className="bg-background">None / Whole Team</option>
               {members.map((m) => (
-                <option key={m.id} value={m.id}>
+                <option key={m.id} value={m.id} className="bg-background">
                   {m.name} ({m.department})
                 </option>
               ))}
             </select>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Description / Notes
-            </label>
-            <textarea
-              rows={2}
+          <div className="space-y-1.5">
+            <Label htmlFor="tx-desc">Notes (Optional)</Label>
+            <Input
+              id="tx-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g. Receipt verified, paid by Asim"
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-emerald-500 focus:outline-none"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl px-4 py-2 text-xs font-medium text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
-            >
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-5 py-2 text-xs font-bold text-white shadow-xs transition-all"
-            >
+            </Button>
+            <Button type="submit">
               Save Transaction
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

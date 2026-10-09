@@ -6,15 +6,21 @@ import { formatPKR, formatDate } from '@/lib/utils';
 import {
   Gift,
   Plus,
-  Smartphone,
-  TrendingUp,
-  Heart,
-  Award,
-  AlertCircle,
   CheckCircle2,
-  Clock,
-  UserPlus
+  Clock
 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { motion } from 'framer-motion';
 
 interface RulesTreatsViewProps {
   onOpenNewTreat: () => void;
@@ -23,173 +29,158 @@ interface RulesTreatsViewProps {
 export function RulesTreatsView({ onOpenNewTreat }: RulesTreatsViewProps) {
   const { rules, treatEvents, isManager, collectTreatPayment, pendingMemberDuesAmount } = useTRF();
 
-  const getRuleIcon = (iconName: string) => {
-    switch (iconName) {
-      case 'Smartphone':
-        return <Smartphone className="h-4 w-4 text-purple-600 dark:text-purple-400" />;
-      case 'TrendingUp':
-        return <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />;
-      case 'Heart':
-        return <Heart className="h-4 w-4 text-rose-600 dark:text-rose-400" />;
-      case 'Award':
-        return <Award className="h-4 w-4 text-amber-600 dark:text-amber-400" />;
-      case 'UserPlus':
-        return <UserPlus className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />;
-      default:
-        return <AlertCircle className="h-4 w-4 text-slate-400" />;
-    }
-  };
-
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.18 }}
+      className="space-y-4"
+    >
       {/* Title & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <Gift className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-            Contribution Rules & Treat Registry
+          <h2 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+            Treats & Contribution Rules
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Milestone treats (smartphones, appraisals, weddings) and penalty contributions.
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+            Milestone treats (gadgets, appraisals, weddings) and penalty contributions
           </p>
         </div>
 
-        <button
+        <Button
+          size="sm"
           onClick={onOpenNewTreat}
-          className="rounded-xl bg-purple-600 hover:bg-purple-500 px-4 py-2 text-xs font-bold text-white shadow-xs transition-all flex items-center gap-2 self-start sm:self-auto"
+          className="gap-1.5 self-start sm:self-auto"
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-3.5 w-3.5" />
           <span>Declare Treat</span>
-        </button>
+        </Button>
       </div>
 
-      {/* Rules Catalog Grid */}
-      <div>
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-          Guidelines
+      {/* Guidelines Grid */}
+      <div className="space-y-2">
+        <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+          Contribution Guidelines
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {rules.map((rule) => (
-            <div
-              key={rule.id}
-              className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-4 shadow-xs flex flex-col justify-between"
-            >
-              <div>
+            <Card key={rule.id} className="flex flex-col justify-between">
+              <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800">
-                    {getRuleIcon(rule.icon)}
-                  </div>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
-                      rule.isMandatory
-                        ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20'
-                        : 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20'
-                    }`}
-                  >
-                    {rule.isMandatory ? 'Mandatory' : 'Treat'}
+                  <Badge variant={rule.isMandatory ? 'default' : 'secondary'} className="text-[10px]">
+                    {rule.isMandatory ? 'Mandatory' : 'Milestone Treat'}
+                  </Badge>
+                  <span className="text-xs font-mono font-medium text-zinc-900 dark:text-zinc-100">
+                    {formatPKR(rule.suggestedAmount)}
                   </span>
                 </div>
-
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white mt-2.5">{rule.title}</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                <CardTitle className="text-sm mt-2">{rule.title}</CardTitle>
+                <CardDescription className="text-xs line-clamp-2">
                   {rule.description}
-                </p>
-              </div>
-
-              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                <span className="text-slate-400">Suggested:</span>
-                <span className="font-extrabold text-purple-600 dark:text-purple-300">
-                  {formatPKR(rule.suggestedAmount)}
-                </span>
-              </div>
-            </div>
+                </CardDescription>
+              </CardHeader>
+            </Card>
           ))}
         </div>
       </div>
 
-      {/* Logged Treat Contributions Table */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-            Recent Treat Declarations
-          </h3>
+      {/* Treat Log Table */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <div>
+            <CardTitle className="text-sm font-semibold">Treat Declarations</CardTitle>
+            <CardDescription className="text-xs">
+              Contributions declared by teammates towards the fund pool
+            </CardDescription>
+          </div>
           {pendingMemberDuesAmount > 0 && (
-            <div className="rounded-full bg-purple-500/10 border border-purple-500/20 px-2.5 py-0.5 text-xs text-purple-600 dark:text-purple-300 font-semibold">
+            <Badge variant="outline" className="text-xs font-mono border-dashed">
               Pending: {formatPKR(pendingMemberDuesAmount)}
-            </div>
+            </Badge>
           )}
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 overflow-hidden shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 dark:bg-slate-950/70 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="px-5 py-3.5 font-semibold">Member</th>
-                  <th className="px-5 py-3.5 font-semibold">Occasion</th>
-                  <th className="px-5 py-3.5 font-semibold">Amount (PKR)</th>
-                  <th className="px-5 py-3.5 font-semibold">Date</th>
-                  <th className="px-5 py-3.5 font-semibold">Status</th>
-                  {isManager && <th className="px-5 py-3.5 font-semibold text-right">Collection</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
-                {treatEvents.map((treat) => (
-                  <tr key={treat.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors">
-                    <td className="px-5 py-3.5 whitespace-nowrap font-bold text-slate-900 dark:text-white">
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Member</TableHead>
+                <TableHead>Occasion</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Status</TableHead>
+                {isManager && <TableHead className="text-right">Collection</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {treatEvents.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={isManager ? 6 : 5} className="h-24 text-center text-xs text-zinc-500">
+                    No treats declared yet.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                treatEvents.map((treat) => (
+                  <TableRow key={treat.id}>
+                    <TableCell className="font-medium text-xs text-zinc-900 dark:text-zinc-100">
                       {treat.memberName}
-                    </td>
+                    </TableCell>
 
-                    <td className="px-5 py-3.5 max-w-sm">
-                      <div className="font-semibold text-purple-600 dark:text-purple-300">
+                    <TableCell>
+                      <div className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
                         {treat.ruleTitle}
                       </div>
-                      <div className="text-[11px] text-slate-500 line-clamp-1">
-                        {treat.details}
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-3.5 whitespace-nowrap font-bold text-emerald-600 dark:text-emerald-400">
-                      +{formatPKR(treat.amount)}
-                    </td>
-
-                    <td className="px-5 py-3.5 whitespace-nowrap text-slate-500 dark:text-slate-400">
-                      {formatDate(treat.date)}
-                    </td>
-
-                    <td className="px-5 py-3.5 whitespace-nowrap">
-                      {treat.status === 'collected' ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                          <CheckCircle2 className="h-3 w-3" /> Collected
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-bold text-amber-600 dark:text-amber-400 border border-amber-500/20 animate-pulse">
-                          <Clock className="h-3 w-3" /> Pending
-                        </span>
+                      {treat.details && (
+                        <div className="text-[11px] text-zinc-400 line-clamp-1">
+                          {treat.details}
+                        </div>
                       )}
-                    </td>
+                    </TableCell>
+
+                    <TableCell className="font-mono font-medium text-xs text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+                      +{formatPKR(treat.amount)}
+                    </TableCell>
+
+                    <TableCell className="text-xs text-zinc-500 whitespace-nowrap">
+                      {formatDate(treat.date)}
+                    </TableCell>
+
+                    <TableCell className="whitespace-nowrap">
+                      {treat.status === 'collected' ? (
+                        <Badge variant="secondary" className="text-[10px] gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          <span>Collected</span>
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] gap-1 border-dashed">
+                          <Clock className="h-3 w-3" />
+                          <span>Pending</span>
+                        </Badge>
+                      )}
+                    </TableCell>
 
                     {isManager && (
-                      <td className="px-5 py-3.5 whitespace-nowrap text-right">
+                      <TableCell className="text-right whitespace-nowrap">
                         {treat.status === 'pending' ? (
-                          <button
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
                             onClick={() => collectTreatPayment(treat.id)}
-                            className="rounded-lg bg-emerald-600 hover:bg-emerald-500 px-2.5 py-1 text-xs font-bold text-white shadow-xs transition-colors"
                           >
                             Mark Collected
-                          </button>
+                          </Button>
                         ) : (
-                          <span className="text-[11px] text-slate-400">Received ✓</span>
+                          <span className="text-xs text-zinc-400">Received ✓</span>
                         )}
-                      </td>
+                      </TableCell>
                     )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }

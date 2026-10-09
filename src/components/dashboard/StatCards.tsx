@@ -3,7 +3,8 @@
 import React from 'react';
 import { useTRF } from '@/context/TRFContext';
 import { formatPKR } from '@/lib/utils';
-import { Wallet, Building2, Clock } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion } from 'framer-motion';
 
 export function StatCards() {
   const { 
@@ -20,64 +21,69 @@ export function StatCards() {
   const totalPending = pendingAuditAmount + pendingMemberDuesAmount;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      {/* 1. Collective Pool Balance */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-5 shadow-xs">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Collective Balance</span>
-          <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-            <Wallet className="h-4 w-4" />
-          </div>
-        </div>
-        <div className="mt-2">
-          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+    <motion.div 
+      initial={{ opacity: 0, y: 6 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      transition={{ duration: 0.2 }}
+      className="grid grid-cols-1 sm:grid-cols-3 gap-4"
+    >
+      {/* 1. Collective Balance */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            Collective Balance
+          </CardTitle>
+          <span className="text-[11px] font-mono text-zinc-400">LIVE</span>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold tracking-tight font-mono">
             {formatPKR(currentBalance)}
           </div>
-          <div className="mt-1 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">+{formatPKR(totalInflow, false)} in</span>
+          <div className="mt-1 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+            <span>+{formatPKR(totalInflow, false)} in</span>
             <span>•</span>
-            <span className="text-rose-600 dark:text-rose-400 font-semibold">-{formatPKR(totalOutflow, false)} out</span>
+            <span>-{formatPKR(totalOutflow, false)} out</span>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* 2. Monthly Company Allowance */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-5 shadow-xs">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Monthly Company Fund</span>
-          <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
-            <Building2 className="h-4 w-4" />
-          </div>
-        </div>
-        <div className="mt-2">
-          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            Monthly Company TRF
+          </CardTitle>
+          <span className="text-[11px] font-mono text-zinc-400">1,400 / HEAD</span>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold tracking-tight font-mono">
             {formatPKR(monthlyAllowancePool)}
           </div>
-          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            {activeHeadcount} Active Heads × {formatPKR(monthlyPerHeadRate)} / month
-          </div>
-        </div>
-      </div>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            {activeHeadcount} Active Heads × {formatPKR(monthlyPerHeadRate)}
+          </p>
+        </CardContent>
+      </Card>
 
       {/* 3. Pending Inflows */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-5 shadow-xs">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Pending Inflows</span>
-          <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
-            <Clock className="h-4 w-4" />
-          </div>
-        </div>
-        <div className="mt-2">
-          <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 tracking-tight">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            Pending Inflows
+          </CardTitle>
+          <span className="text-[11px] font-mono text-zinc-400">DUE</span>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold tracking-tight font-mono">
             {formatPKR(totalPending)}
           </div>
-          <div className="mt-1 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <span>Audit: <strong className="text-slate-700 dark:text-slate-300">{formatPKR(pendingAuditAmount, false)}</strong></span>
+          <div className="mt-1 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+            <span>Audit: {formatPKR(pendingAuditAmount, false)}</span>
             <span>•</span>
-            <span>Dues: <strong className="text-slate-700 dark:text-slate-300">{formatPKR(pendingMemberDuesAmount, false)}</strong></span>
+            <span>Dues: {formatPKR(pendingMemberDuesAmount, false)}</span>
           </div>
-        </div>
-      </div>
-    </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }

@@ -67,7 +67,7 @@ function DashboardContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 transition-colors duration-200">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
       {/* 1. Fixed Sidebar Component */}
       <Sidebar
         activeTab={activeTab}
@@ -79,7 +79,7 @@ function DashboardContent() {
       {/* 2. Main Layout Area (Automatically adjusts margin when sidebar expands/collapses) */}
       <div
         className={`min-h-screen flex flex-col transition-all duration-300 ease-in-out ${
-          isSidebarCollapsed ? 'md:pl-20' : 'md:pl-64'
+          isSidebarCollapsed ? 'md:pl-16' : 'md:pl-60'
         }`}
       >
         {/* Top Navbar */}
@@ -91,7 +91,7 @@ function DashboardContent() {
         />
 
         {/* Dynamic Main Content Views */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto pb-24 md:pb-12">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto pb-24 md:pb-12">
           {activeTab === 'overview' && (
             <OverviewView
               onNavigateTab={setActiveTab}
@@ -139,14 +139,14 @@ function DashboardContent() {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/95 border-t border-slate-200 dark:border-slate-800 backdrop-blur-lg px-2 py-1.5 flex items-center justify-around">
+      {/* Mobile Bottom Navigation Bar (Minimalist Shadcn Neutral) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/95 border-t border-border backdrop-blur-md px-2 py-1.5 flex items-center justify-around">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`flex flex-col items-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors ${
+          className={`flex flex-col items-center py-1 px-2 rounded-md text-[10px] font-medium transition-colors ${
             activeTab === 'overview'
-              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
-              : 'text-slate-500 dark:text-slate-400'
+              ? 'text-foreground font-semibold'
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           <LayoutDashboard className="h-4 w-4" />
@@ -154,10 +154,10 @@ function DashboardContent() {
         </button>
         <button
           onClick={() => setActiveTab('ledger')}
-          className={`flex flex-col items-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors ${
+          className={`flex flex-col items-center py-1 px-2 rounded-md text-[10px] font-medium transition-colors ${
             activeTab === 'ledger'
-              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
-              : 'text-slate-500 dark:text-slate-400'
+              ? 'text-foreground font-semibold'
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           <Receipt className="h-4 w-4" />
@@ -165,10 +165,10 @@ function DashboardContent() {
         </button>
         <button
           onClick={() => setActiveTab('audit-claims')}
-          className={`flex flex-col items-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors ${
+          className={`flex flex-col items-center py-1 px-2 rounded-md text-[10px] font-medium transition-colors ${
             activeTab === 'audit-claims'
-              ? 'text-cyan-600 dark:text-cyan-400 font-bold'
-              : 'text-slate-500 dark:text-slate-400'
+              ? 'text-foreground font-semibold'
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           <FileSpreadsheet className="h-4 w-4" />
@@ -176,10 +176,10 @@ function DashboardContent() {
         </button>
         <button
           onClick={() => setActiveTab('birthdays')}
-          className={`flex flex-col items-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors ${
+          className={`flex flex-col items-center py-1 px-2 rounded-md text-[10px] font-medium transition-colors ${
             activeTab === 'birthdays'
-              ? 'text-pink-600 dark:text-pink-400 font-bold'
-              : 'text-slate-500 dark:text-slate-400'
+              ? 'text-foreground font-semibold'
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           <Cake className="h-4 w-4" />
@@ -187,10 +187,10 @@ function DashboardContent() {
         </button>
         <button
           onClick={() => setActiveTab('activities-venues')}
-          className={`flex flex-col items-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors ${
+          className={`flex flex-col items-center py-1 px-2 rounded-md text-[10px] font-medium transition-colors ${
             activeTab === 'activities-venues'
-              ? 'text-cyan-600 dark:text-cyan-400 font-bold'
-              : 'text-slate-500 dark:text-slate-400'
+              ? 'text-foreground font-semibold'
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           <Compass className="h-4 w-4" />
@@ -198,14 +198,25 @@ function DashboardContent() {
         </button>
         <button
           onClick={() => setActiveTab('rules-treats')}
-          className={`flex flex-col items-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors ${
+          className={`flex flex-col items-center py-1 px-2 rounded-md text-[10px] font-medium transition-colors ${
             activeTab === 'rules-treats'
-              ? 'text-purple-600 dark:text-purple-400 font-bold'
-              : 'text-slate-500 dark:text-slate-400'
+              ? 'text-foreground font-semibold'
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           <Gift className="h-4 w-4" />
           <span>Treats</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('members')}
+          className={`flex flex-col items-center py-1 px-2 rounded-md text-[10px] font-medium transition-colors ${
+            activeTab === 'members'
+              ? 'text-foreground font-semibold'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Users className="h-4 w-4" />
+          <span>Team</span>
         </button>
       </div>
 

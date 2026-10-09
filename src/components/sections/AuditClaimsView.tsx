@@ -3,13 +3,20 @@
 import React from 'react';
 import { useTRF } from '@/context/TRFContext';
 import { formatPKR, formatDate } from '@/lib/utils';
+import { Plus } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
-  FileCheck2,
-  Plus,
-  Clock,
-  CheckCircle2
-} from 'lucide-react';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { ClaimStatus } from '@/types/trf';
+import { motion } from 'framer-motion';
 
 interface AuditClaimsViewProps {
   onOpenNewClaim: () => void;
@@ -21,142 +28,113 @@ export function AuditClaimsView({ onOpenNewClaim }: AuditClaimsViewProps) {
   const getStatusBadge = (status: ClaimStatus) => {
     switch (status) {
       case 'approved_disbursed':
-        return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-            <CheckCircle2 className="h-3 w-3" />
-            Disbursed
-          </span>
-        );
+        return <Badge variant="default" className="text-[10px]">Disbursed</Badge>;
       case 'submitted':
-        return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-bold text-amber-600 dark:text-amber-400 border border-amber-500/20 animate-pulse">
-            <Clock className="h-3 w-3" />
-            Submitted to Audit
-          </span>
-        );
+        return <Badge variant="secondary" className="text-[10px]">Submitted</Badge>;
       case 'draft':
-        return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-[11px] font-medium text-slate-600 dark:text-slate-300">
-            Draft
-          </span>
-        );
+        return <Badge variant="outline" className="text-[10px]">Draft</Badge>;
       case 'rejected':
-        return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2.5 py-0.5 text-[11px] font-bold text-rose-600 dark:text-rose-400 border border-rose-500/20">
-            Returned
-          </span>
-        );
+        return <Badge variant="destructive" className="text-[10px]">Returned</Badge>;
     }
   };
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.18 }}
+      className="space-y-4"
+    >
       {/* Title & Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <FileCheck2 className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
-            Company TRF Audit Claims
+          <h2 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+            Monthly Audit Claims
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Formula: {activeHeadcount} Active Heads × PKR 1,400 = <strong className="text-cyan-600 dark:text-cyan-300">{formatPKR(activeHeadcount * monthlyPerHeadRate)} / month</strong>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 font-mono">
+            Rate: {activeHeadcount} Heads × PKR 1,400 = {formatPKR(activeHeadcount * monthlyPerHeadRate)} / month
           </p>
         </div>
 
         {isManager && (
-          <button
+          <Button
+            size="sm"
             onClick={onOpenNewClaim}
-            className="rounded-xl bg-cyan-600 hover:bg-cyan-500 px-4 py-2 text-xs font-bold text-white shadow-xs transition-all flex items-center gap-2 self-start sm:self-auto"
+            className="gap-1.5 self-start sm:self-auto"
           >
-            <Plus className="h-4 w-4" />
-            <span>Generate Monthly Claim</span>
-          </button>
+            <Plus className="h-3.5 w-3.5" />
+            <span>Generate Claim</span>
+          </Button>
         )}
       </div>
 
-      {/* Claims List Table */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 dark:bg-slate-950/70 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 uppercase tracking-wider text-[11px]">
-              <tr>
-                <th className="px-5 py-3.5 font-semibold">Month & Voucher</th>
-                <th className="px-5 py-3.5 font-semibold">Headcount</th>
-                <th className="px-5 py-3.5 font-semibold">Total Claim (PKR)</th>
-                <th className="px-5 py-3.5 font-semibold">Status</th>
-                <th className="px-5 py-3.5 font-semibold">Submitted</th>
-                <th className="px-5 py-3.5 font-semibold">Disbursed Date</th>
-                {isManager && <th className="px-5 py-3.5 font-semibold text-right">Audit Action</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
+      {/* Claims Table */}
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Month & Voucher</TableHead>
+                <TableHead>Headcount</TableHead>
+                <TableHead>Total Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Submission Date</TableHead>
+                <TableHead>Disbursed Date</TableHead>
+                {isManager && <TableHead className="text-right">Action</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {claims.map((claim) => (
-                <tr key={claim.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors">
-                  {/* Month */}
-                  <td className="px-5 py-3.5 whitespace-nowrap">
-                    <div className="font-bold text-slate-900 dark:text-white">{claim.monthYear}</div>
-                    <div className="text-[10px] text-cyan-600 dark:text-cyan-400 font-mono">
-                      {claim.claimRefNumber || 'TRF-CLAIM'}
+                <TableRow key={claim.id}>
+                  <TableCell className="font-medium text-xs">
+                    <div className="text-zinc-900 dark:text-zinc-100">{claim.monthYear}</div>
+                    <div className="text-[11px] text-zinc-400 font-mono">
+                      {claim.claimRefNumber || 'TRF-AUD'}
                     </div>
-                  </td>
+                  </TableCell>
 
-                  {/* Headcount */}
-                  <td className="px-5 py-3.5 whitespace-nowrap text-slate-500 dark:text-slate-400">
-                    {claim.headcount} Heads (@ 1,400)
-                  </td>
+                  <TableCell className="text-xs text-zinc-500">
+                    {claim.headcount} Heads
+                  </TableCell>
 
-                  {/* Total Amount */}
-                  <td className="px-5 py-3.5 whitespace-nowrap">
-                    <span className="font-extrabold text-cyan-600 dark:text-cyan-300">
-                      {formatPKR(claim.totalAmount)}
-                    </span>
-                  </td>
+                  <TableCell className="font-mono font-medium text-xs">
+                    {formatPKR(claim.totalAmount)}
+                  </TableCell>
 
-                  {/* Status */}
-                  <td className="px-5 py-3.5 whitespace-nowrap">
+                  <TableCell>
                     {getStatusBadge(claim.status)}
-                  </td>
+                  </TableCell>
 
-                  {/* Submitted Date */}
-                  <td className="px-5 py-3.5 whitespace-nowrap text-slate-500 dark:text-slate-400">
+                  <TableCell className="text-xs text-zinc-500">
                     {formatDate(claim.submissionDate)}
-                  </td>
+                  </TableCell>
 
-                  {/* Disbursed Date */}
-                  <td className="px-5 py-3.5 whitespace-nowrap">
-                    {claim.disbursedDate ? (
-                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                        {formatDate(claim.disbursedDate)}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400 dark:text-slate-500">-</span>
-                    )}
-                  </td>
+                  <TableCell className="text-xs text-zinc-500 font-mono">
+                    {claim.disbursedDate ? formatDate(claim.disbursedDate) : '-'}
+                  </TableCell>
 
-                  {/* Action */}
                   {isManager && (
-                    <td className="px-5 py-3.5 whitespace-nowrap text-right">
-                      {claim.status === 'submitted' && (
-                        <button
+                    <TableCell className="text-right">
+                      {claim.status === 'submitted' ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
                           onClick={() => updateClaimStatus(claim.id, 'approved_disbursed')}
-                          className="rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-1 text-xs font-bold text-white shadow-xs transition-colors"
+                          className="h-7 text-xs"
                         >
                           Mark Disbursed
-                        </button>
+                        </Button>
+                      ) : (
+                        <span className="text-[11px] text-zinc-400">Done</span>
                       )}
-                      {claim.status === 'approved_disbursed' && (
-                        <span className="text-[11px] text-emerald-600 dark:text-emerald-400/80 font-medium">
-                          Credited ✓
-                        </span>
-                      )}
-                    </td>
+                    </TableCell>
                   )}
-                </tr>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }

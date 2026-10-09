@@ -3,16 +3,20 @@
 import React, { useState } from 'react';
 import { useTRF } from '@/context/TRFContext';
 import { formatPKR, formatDate, exportToCSV } from '@/lib/utils';
+import { Download, Plus, Search, Trash2 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import {
-  Receipt,
-  Download,
-  Plus,
-  Search,
-  Filter,
-  Trash2,
-  ArrowUpRight,
-  ArrowDownRight
-} from 'lucide-react';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { motion } from 'framer-motion';
 
 interface FundsLedgerViewProps {
   onOpenNewTransaction: () => void;
@@ -22,19 +26,17 @@ export function FundsLedgerView({ onOpenNewTransaction }: FundsLedgerViewProps) 
   const { transactions, deleteTransaction, isManager } = useTRF();
 
   const [filterType, setFilterType] = useState<'all' | 'inflow' | 'outflow'>('all');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Filtered transactions
   const filtered = transactions.filter((tx) => {
     if (filterType !== 'all' && tx.type !== filterType) return false;
-    if (selectedCategory !== 'all' && tx.category !== selectedCategory) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      const matchTitle = tx.title.toLowerCase().includes(q);
-      const matchDesc = tx.description?.toLowerCase().includes(q) || false;
-      const matchLogger = tx.loggedBy.toLowerCase().includes(q);
-      return matchTitle || matchDesc || matchLogger;
+      return (
+        tx.title.toLowerCase().includes(q) ||
+        (tx.description?.toLowerCase().includes(q) ?? false) ||
+        tx.loggedBy.toLowerCase().includes(q)
+      );
     }
     return true;
   });
@@ -54,224 +56,159 @@ export function FundsLedgerView({ onOpenNewTransaction }: FundsLedgerViewProps) 
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header & Export / Add controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.18 }}
+      className="space-y-4"
+    >
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <Receipt className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-            Collective Funds Ledger
+          <h2 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+            Funds Ledger
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Transparent tracking of allowances, member treats, and expenses.
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+            Audit trail of company claims, member treats, and expenses
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          <button
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleExportCSV}
-            className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 transition-colors flex items-center gap-2 shadow-xs"
-            title="Download CSV for Excel / Audit"
+            className="gap-1.5"
           >
-            <Download className="h-4 w-4" />
+            <Download className="h-3.5 w-3.5" />
             <span>Export CSV</span>
-          </button>
+          </Button>
 
           {isManager && (
-            <button
+            <Button
+              size="sm"
               onClick={onOpenNewTransaction}
-              className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-xs transition-all flex items-center gap-2"
+              className="gap-1.5"
             >
-              <Plus className="h-4 w-4" />
-              <span>Log Transaction</span>
-            </button>
+              <Plus className="h-3.5 w-3.5" />
+              <span>Log Expense</span>
+            </Button>
           )}
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 shadow-xs">
-        {/* Search */}
-        <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <input
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+          <Input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search transactions..."
-            className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 pl-10 pr-4 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-emerald-500 focus:outline-none"
+            className="pl-9 h-8 text-xs"
           />
         </div>
 
-        {/* Inflow/Outflow Filter Pills */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 self-start md:self-auto">
-          <button
+        <div className="flex items-center gap-1">
+          <Button
+            variant={filterType === 'all' ? 'secondary' : 'ghost'}
+            size="sm"
             onClick={() => setFilterType('all')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-              filterType === 'all'
-                ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
+            className="h-8 text-xs"
           >
             All ({transactions.length})
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={filterType === 'inflow' ? 'secondary' : 'ghost'}
+            size="sm"
             onClick={() => setFilterType('inflow')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-              filterType === 'inflow'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
+            className="h-8 text-xs"
           >
             Inflows
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={filterType === 'outflow' ? 'secondary' : 'ghost'}
+            size="sm"
             onClick={() => setFilterType('outflow')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-              filterType === 'outflow'
-                ? 'bg-rose-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
+            className="h-8 text-xs"
           >
             Outflows
-          </button>
-        </div>
-
-        {/* Category Dropdown */}
-        <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-slate-400 hidden sm:block" />
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
-          >
-            <option value="all">All Categories</option>
-            <option value="company_claim">Company Allowance (1,400)</option>
-            <option value="joining_fee">Joining Fee</option>
-            <option value="treat_event">Treats & Gadgets</option>
-            <option value="team_dinner">Team Dinners</option>
-            <option value="snacks_refreshment">Snacks & Chai</option>
-            <option value="birthday_cake">Birthday Cakes</option>
-            <option value="activity_outing">Outings & Bowling</option>
-          </select>
+          </Button>
         </div>
       </div>
 
       {/* Ledger Table */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 dark:bg-slate-950/70 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 uppercase tracking-wider text-[11px]">
-              <tr>
-                <th className="px-5 py-3.5 font-semibold">Date & Type</th>
-                <th className="px-5 py-3.5 font-semibold">Title & Description</th>
-                <th className="px-5 py-3.5 font-semibold">Category</th>
-                <th className="px-5 py-3.5 font-semibold">Logged By</th>
-                <th className="px-5 py-3.5 font-semibold text-right">Amount (PKR)</th>
-                {isManager && <th className="px-5 py-3.5 font-semibold text-right">Action</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Title & Category</TableHead>
+                <TableHead>Logged By</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                {isManager && <TableHead className="w-12 text-right"></TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filtered.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={isManager ? 6 : 5}
-                    className="px-5 py-12 text-center text-slate-400"
-                  >
-                    No transactions match the selected filters.
-                  </td>
-                </tr>
+                <TableRow>
+                  <TableCell colSpan={isManager ? 5 : 4} className="h-24 text-center text-xs text-zinc-500">
+                    No transactions found.
+                  </TableCell>
+                </TableRow>
               ) : (
                 filtered.map((tx) => {
                   const isInflow = tx.type === 'inflow';
                   return (
-                    <tr
-                      key={tx.id}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors"
-                    >
-                      {/* Date & Type */}
-                      <td className="px-5 py-3.5 whitespace-nowrap">
-                        <div className="flex items-center gap-2.5">
-                          <div
-                            className={`p-1.5 rounded-lg ${
-                              isInflow
-                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                                : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
-                            }`}
-                          >
-                            {isInflow ? (
-                              <ArrowUpRight className="h-3.5 w-3.5" />
-                            ) : (
-                              <ArrowDownRight className="h-3.5 w-3.5" />
-                            )}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-slate-900 dark:text-white">
-                              {formatDate(tx.date)}
-                            </div>
-                            <div className="text-[10px] text-slate-400 uppercase font-mono">
-                              {tx.type}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Title & Description */}
-                      <td className="px-5 py-3.5 max-w-sm">
-                        <div className="font-semibold text-slate-900 dark:text-slate-200">
+                    <TableRow key={tx.id}>
+                      <TableCell className="text-xs text-zinc-500 whitespace-nowrap">
+                        {formatDate(tx.date)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium text-xs text-zinc-900 dark:text-zinc-100">
                           {tx.title}
                         </div>
-                        {tx.description && (
-                          <div className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
-                            {tx.description}
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Category Badge */}
-                      <td className="px-5 py-3.5 whitespace-nowrap">
-                        <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-[10px] font-medium text-slate-700 dark:text-slate-300 capitalize">
-                          {tx.category.replace('_', ' ')}
-                        </span>
-                      </td>
-
-                      {/* Logged By */}
-                      <td className="px-5 py-3.5 whitespace-nowrap text-slate-500 dark:text-slate-400">
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[11px] text-zinc-400 capitalize">
+                            {tx.category.replace('_', ' ')}
+                          </span>
+                          {tx.description && (
+                            <span className="text-[11px] text-zinc-400 truncate max-w-xs">
+                              • {tx.description}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs text-zinc-500 whitespace-nowrap">
                         {tx.loggedBy}
-                      </td>
-
-                      {/* Amount */}
-                      <td className="px-5 py-3.5 whitespace-nowrap text-right">
-                        <span
-                          className={`font-bold text-sm ${
-                            isInflow ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
-                          }`}
-                        >
-                          {isInflow ? '+' : '-'}
-                          {formatPKR(tx.amount)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-medium text-xs whitespace-nowrap">
+                        <span className={isInflow ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-900 dark:text-zinc-100'}>
+                          {isInflow ? '+' : '-'}{formatPKR(tx.amount)}
                         </span>
-                      </td>
-
-                      {/* Action */}
+                      </TableCell>
                       {isManager && (
-                        <td className="px-5 py-3.5 whitespace-nowrap text-right">
-                          <button
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => deleteTransaction(tx.id)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
-                            title="Delete entry"
+                            className="h-7 w-7 text-zinc-400 hover:text-red-600"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </td>
+                          </Button>
+                        </TableCell>
                       )}
-                    </tr>
+                    </TableRow>
                   );
                 })
               )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }

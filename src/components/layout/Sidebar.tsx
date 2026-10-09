@@ -15,10 +15,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Sun,
-  Moon,
-  ShieldCheck,
-  User
+  Moon
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { motion } from 'framer-motion';
 
 export type NavTab = 
   | 'overview' 
@@ -50,88 +50,49 @@ export function Sidebar({
     label: string;
     icon: React.ElementType;
   }[] = [
-    {
-      id: 'overview',
-      label: 'Dashboard',
-      icon: LayoutDashboard,
-    },
-    {
-      id: 'ledger',
-      label: 'Funds Ledger',
-      icon: Receipt,
-    },
-    {
-      id: 'audit-claims',
-      label: 'Audit Claims (1,400)',
-      icon: FileSpreadsheet,
-    },
-    {
-      id: 'birthdays',
-      label: 'Birthdays',
-      icon: Cake,
-    },
-    {
-      id: 'activities-venues',
-      label: 'Places & Outings',
-      icon: Compass,
-    },
-    {
-      id: 'rules-treats',
-      label: 'Treats & Rules',
-      icon: Gift,
-    },
-    {
-      id: 'members',
-      label: 'Team & Joining Fees',
-      icon: Users,
-    },
+    { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'ledger', label: 'Funds Ledger', icon: Receipt },
+    { id: 'audit-claims', label: 'Audit Claims', icon: FileSpreadsheet },
+    { id: 'birthdays', label: 'Birthdays', icon: Cake },
+    { id: 'activities-venues', label: 'Places & Outings', icon: Compass },
+    { id: 'rules-treats', label: 'Treats & Rules', icon: Gift },
+    { id: 'members', label: 'Team & Fees', icon: Users },
   ];
 
   return (
-    <aside
-      className={`fixed left-0 top-0 bottom-0 z-40 h-screen transition-all duration-300 ease-in-out border-r flex flex-col justify-between hidden md:flex ${
-        isCollapsed ? 'w-20' : 'w-64'
-      } bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800/80 shadow-sm`}
+    <motion.aside
+      initial={false}
+      animate={{ width: isCollapsed ? 64 : 240 }}
+      transition={{ duration: 0.2, ease: "easeInOut" }}
+      className="fixed left-0 top-0 bottom-0 z-40 h-screen border-r flex flex-col justify-between hidden md:flex bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800"
     >
-      {/* Top: Brand & Toggle */}
+      {/* Top Header */}
       <div>
-        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200 dark:border-slate-800/80">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-              <Wallet className="h-5 w-5" />
+        <div className="h-14 flex items-center justify-between px-3 border-b border-zinc-200 dark:border-zinc-800">
+          <div className="flex items-center gap-2.5 overflow-hidden">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-zinc-900 text-zinc-50 dark:bg-zinc-50 dark:text-zinc-900">
+              <Wallet className="h-4 w-4" />
             </div>
             {!isCollapsed && (
-              <div className="min-w-0 transition-opacity duration-200">
-                <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-white truncate block">
-                  TRF Portal
-                </span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate block">
-                  Team Funds
-                </span>
-              </div>
+              <span className="font-semibold text-sm tracking-tight text-zinc-900 dark:text-zinc-50 truncate">
+                TRF Portal
+              </span>
             )}
           </div>
 
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onToggleCollapse}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="h-7 w-7 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50"
             title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {isCollapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
-          </button>
+            {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
+          </Button>
         </div>
 
-        {/* Menu Navigation */}
-        <div className="p-3 space-y-1">
-          {!isCollapsed && (
-            <div className="px-3 pb-1 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">
-              Navigation
-            </div>
-          )}
+        {/* Navigation */}
+        <nav className="p-2 space-y-0.5">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -140,81 +101,55 @@ export function Sidebar({
                 key={item.id}
                 onClick={() => onTabChange(item.id)}
                 title={isCollapsed ? item.label : undefined}
-                className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-medium transition-all ${
-                  isCollapsed ? 'justify-center' : ''
+                className={`w-full flex items-center gap-3 rounded-md px-2.5 py-2 text-xs font-medium transition-colors cursor-pointer ${
+                  isCollapsed ? 'justify-center px-0' : ''
                 } ${
                   isActive
-                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent'
+                    ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 font-semibold'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-50'
                 }`}
               >
-                <Icon
-                  className={`h-4 w-4 flex-shrink-0 ${
-                    isActive
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : 'text-slate-400 dark:text-slate-500'
-                  }`}
-                />
+                <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-zinc-900 dark:text-zinc-50' : 'text-zinc-500'}`} />
                 {!isCollapsed && <span className="truncate">{item.label}</span>}
               </button>
             );
           })}
-        </div>
+        </nav>
       </div>
 
-      {/* Bottom: Theme Toggle & User Info */}
-      <div className="p-3 border-t border-slate-200 dark:border-slate-800/80 space-y-2">
-        {/* Light / Dark Mode Toggle Button */}
-        <button
+      {/* Bottom Footer */}
+      <div className="p-2 border-t border-zinc-200 dark:border-zinc-800 space-y-1">
+        {/* Theme button */}
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={toggleTheme}
-          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          className={`w-full flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors ${
-            isCollapsed ? 'justify-center' : ''
-          }`}
+          className={`w-full justify-start text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-50 ${isCollapsed ? 'justify-center px-0' : ''}`}
+          title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
         >
-          {theme === 'dark' ? (
-            <Sun className="h-4 w-4 text-amber-400 flex-shrink-0" />
-          ) : (
-            <Moon className="h-4 w-4 text-slate-700 flex-shrink-0" />
-          )}
-          {!isCollapsed && (
-            <span className="truncate">
-              {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-            </span>
-          )}
-        </button>
+          {theme === 'dark' ? <Sun className="h-3.5 w-3.5 flex-shrink-0" /> : <Moon className="h-3.5 w-3.5 flex-shrink-0" />}
+          {!isCollapsed && <span className="ml-2 text-xs">{theme === 'dark' ? 'Light' : 'Dark'}</span>}
+        </Button>
 
-        {/* User Card */}
-        <div
-          className={`flex items-center gap-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 p-2 border border-slate-200 dark:border-slate-800 ${
-            isCollapsed ? 'justify-center p-1.5' : ''
-          }`}
-        >
+        {/* User profile */}
+        <div className={`flex items-center gap-2 p-1.5 rounded-md ${isCollapsed ? 'justify-center p-1' : ''}`}>
           <img
             src={currentUser.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
             alt={currentUser.name}
-            className="h-8 w-8 rounded-lg object-cover border border-slate-300 dark:border-slate-700 flex-shrink-0"
+            className="h-6 w-6 rounded-full object-cover flex-shrink-0"
           />
           {!isCollapsed && (
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+            <div className="min-w-0">
+              <div className="text-xs font-medium text-zinc-900 dark:text-zinc-100 truncate">
                 {currentUser.name}
               </div>
-              <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate flex items-center gap-1">
-                {isManager ? (
-                  <span className="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-0.5">
-                    <ShieldCheck className="h-2.5 w-2.5" /> Manager
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-0.5">
-                    <User className="h-2.5 w-2.5" /> Member
-                  </span>
-                )}
+              <div className="text-[10px] text-zinc-400 truncate">
+                {isManager ? 'Manager' : 'Member'}
               </div>
             </div>
           )}
         </div>
       </div>
-    </aside>
+    </motion.aside>
   );
 }
