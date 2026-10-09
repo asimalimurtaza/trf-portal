@@ -24,6 +24,7 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
   const { addMember, defaultJoiningFee } = useTRF();
 
   const [name, setName] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('TRFPass2026!');
   const [role, setRole] = useState<'member' | 'manager'>('member');
@@ -52,11 +53,15 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim()) return;
+    if (!name.trim() || !email.trim() || !employeeId.trim()) {
+      setErrorMsg('Name, Email, and Employee ID are required.');
+      return;
+    }
 
     setErrorMsg('');
     setIsSubmitting(true);
     const res = await addMember({
+      employeeId: employeeId.trim(),
       name: name.trim(),
       email: email.trim(),
       password,
@@ -71,6 +76,7 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
 
     if (res.success) {
       setName('');
+      setEmployeeId('');
       setEmail('');
       setDesignation('');
       onClose();
@@ -99,6 +105,17 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
+              <Label htmlFor="mem-empid">Employee ID (Emp ID) *</Label>
+              <Input
+                id="mem-empid"
+                required
+                value={employeeId}
+                onChange={(e) => setEmployeeId(e.target.value)}
+                placeholder="e.g. TL-1042"
+                className="font-mono text-xs"
+              />
+            </div>
+            <div className="space-y-1.5">
               <Label htmlFor="mem-name">Full Name *</Label>
               <Input
                 id="mem-name"
@@ -108,17 +125,18 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
                 placeholder="Daniyal Qureshi"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="mem-email">Email Address *</Label>
-              <Input
-                id="mem-email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="daniyal@company.com"
-              />
-            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="mem-email">Email Address *</Label>
+            <Input
+              id="mem-email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="daniyal@company.com"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">

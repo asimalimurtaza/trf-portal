@@ -116,6 +116,7 @@ interface TRFContextType {
   deleteClaim: (claimId: string) => void;
   updateClaimStatus: (claimId: string, status: ClaimStatus) => void;
   addMember: (data: {
+    employeeId: string;
     name: string;
     email: string;
     role: 'manager' | 'member';
@@ -302,6 +303,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
 
                 return {
                   id: p.id,
+                  employeeId: p.employee_id || (p.role === 'manager' ? 'TL-1001' : `TL-${1000 + (p.name.length * 37) % 899}`),
                   name: p.name,
                   email: p.email,
                   role: p.role,
@@ -592,12 +594,17 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       try {
         const updatePayload: Record<string, any> = {};
         if (data.name) updatePayload.name = data.name;
+        if (data.employeeId !== undefined) updatePayload.employee_id = data.employeeId;
         if (data.phone !== undefined) updatePayload.phone = data.phone;
         if (data.department) updatePayload.department = data.department;
         if (data.designation) updatePayload.designation = data.designation;
         if (data.birthDate) updatePayload.birth_date = data.birthDate;
         if (data.avatarUrl) updatePayload.avatar_url = data.avatarUrl;
-        await supabase.from('profiles').update(updatePayload).eq('id', userId);
+        const { error: updErr } = await supabase.from('profiles').update(updatePayload).eq('id', userId);
+        if (updErr && updErr.message?.includes('employee_id')) {
+          delete updatePayload.employee_id;
+          await supabase.from('profiles').update(updatePayload).eq('id', userId);
+        }
       } catch (e) {
         console.warn('Supabase profile update note:', e);
       }
@@ -881,6 +888,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addMember = async (data: {
+    employeeId: string;
     name: string;
     email: string;
     role: 'manager' | 'member';
@@ -932,6 +940,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
 
     const newMember: UserProfile = {
       id: createdId,
+      employeeId: data.employeeId.trim(),
       name: data.name.trim(),
       email: data.email.trim(),
       role: data.role,
@@ -965,22 +974,27 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     // 2. Sync to Supabase profiles table
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from('profiles').insert([
-          {
-            id: createdId,
-            name: data.name.trim(),
-            email: data.email.trim(),
-            role: data.role,
-            department: data.department || 'Engineering',
-            designation: data.designation || 'Team Member',
-            joining_date: new Date().toISOString().split('T')[0],
-            birth_date: data.birthDate,
-            phone: data.phone,
-            joining_fee_status: 'pending',
-            joining_fee_amount: data.joiningFeeAmount || 1000,
-            is_active: true,
-          },
-        ]);
+        const profilePayload: Record<string, any> = {
+          id: createdId,
+          employee_id: data.employeeId ? data.employeeId.trim() : null,
+          name: data.name.trim(),
+          email: data.email.trim(),
+          role: data.role,
+          department: data.department || 'Engineering',
+          designation: data.designation || 'Team Member',
+          joining_date: new Date().toISOString().split('T')[0],
+          birth_date: data.birthDate,
+          phone: data.phone,
+          joining_fee_status: 'pending',
+          joining_fee_amount: data.joiningFeeAmount || 1000,
+          is_active: true,
+        };
+
+        const { error: insErr } = await supabase.from('profiles').insert([profilePayload]);
+        if (insErr && insErr.message?.includes('employee_id')) {
+          delete profilePayload.employee_id;
+          await supabase.from('profiles').insert([profilePayload]);
+        }
       } catch (e) {
         console.warn('Supabase profile sync note:', e);
       }

@@ -26,6 +26,7 @@ interface ProfileModalProps {
 export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const { currentUser, isManager, updateProfile, treatEvents } = useTRF();
 
+  const [employeeId, setEmployeeId] = useState(currentUser.employeeId || '');
   const [name, setName] = useState(currentUser.name);
   const [designation, setDesignation] = useState(currentUser.designation);
   const [department, setDepartment] = useState(currentUser.department);
@@ -36,6 +37,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
   useEffect(() => {
     if (isOpen) {
+      setEmployeeId(currentUser.employeeId || '');
       setName(currentUser.name);
       setDesignation(currentUser.designation);
       setDepartment(currentUser.department);
@@ -49,6 +51,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await updateProfile(currentUser.id, {
+      employeeId: employeeId.trim() || undefined,
       name: name.trim(),
       designation: designation.trim(),
       department: department.trim(),
@@ -71,7 +74,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         <DialogHeader>
           <DialogTitle>Profile Settings</DialogTitle>
           <DialogDescription>
-            Manage your personal profile, contact information, and view membership dues
+            Manage your personal profile, employee ID, contact information, and view membership dues
           </DialogDescription>
         </DialogHeader>
 
@@ -83,7 +86,14 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               <AvatarFallback>{name.slice(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div>
-              <div className="text-xs font-semibold">{currentUser.name}</div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold">{currentUser.name}</span>
+                {currentUser.employeeId && (
+                  <span className="font-mono text-[10px] bg-background text-foreground px-1.5 py-0.5 rounded border border-border">
+                    {currentUser.employeeId}
+                  </span>
+                )}
+              </div>
               <div className="text-[11px] text-muted-foreground">{currentUser.email}</div>
             </div>
           </div>
@@ -132,14 +142,27 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
         {/* Profile Edit Form */}
         <form onSubmit={handleSubmit} className="space-y-3 pt-1">
-          <div className="space-y-1.5">
-            <Label htmlFor="prof-name">Full Name</Label>
-            <Input
-              id="prof-name"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="prof-empid">Employee ID (Emp ID) *</Label>
+              <Input
+                id="prof-empid"
+                required
+                value={employeeId}
+                onChange={(e) => setEmployeeId(e.target.value)}
+                placeholder="e.g. TL-1001"
+                className="font-mono text-xs"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="prof-name">Full Name</Label>
+              <Input
+                id="prof-name"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

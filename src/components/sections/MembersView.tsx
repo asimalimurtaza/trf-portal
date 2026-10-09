@@ -49,6 +49,7 @@ export function MembersView({ onOpenAddMember }: MembersViewProps) {
       return (
         m.name.toLowerCase().includes(q) ||
         m.email.toLowerCase().includes(q) ||
+        (m.employeeId ? m.employeeId.toLowerCase().includes(q) : false) ||
         m.department.toLowerCase().includes(q) ||
         m.designation.toLowerCase().includes(q)
       );
@@ -181,8 +182,13 @@ export function MembersView({ onOpenAddMember }: MembersViewProps) {
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <div className="font-medium text-xs text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                            <div className="font-medium text-xs text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5 flex-wrap">
                               <span>{member.name}</span>
+                              {member.employeeId && (
+                                <span className="font-mono text-[10px] text-zinc-500 dark:text-zinc-400 bg-muted px-1.5 py-0.5 rounded border border-border">
+                                  {member.employeeId}
+                                </span>
+                              )}
                               {isCurrentUser && (
                                 <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">
                                   You

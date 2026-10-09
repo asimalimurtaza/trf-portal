@@ -1,23 +1,38 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useTRF } from '@/context/TRFContext';
-import { useTheme } from '@/context/ThemeContext';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Wallet, Sun, Moon, ArrowRight, AlertCircle, CheckCircle2, KeyRound } from 'lucide-react';
-import { motion } from 'framer-motion';
+import React, { useState } from "react";
+import { useTRF } from "@/context/TRFContext";
+import { useTheme } from "@/context/ThemeContext";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Wallet,
+  Sun,
+  Moon,
+  ArrowRight,
+  AlertCircle,
+  CheckCircle2,
+  KeyRound,
+} from "lucide-react";
+import { motion } from "framer-motion";
 
 export function LoginScreen() {
   const { login, resetPassword } = useTRF();
   const { theme, toggleTheme } = useTheme();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
@@ -25,39 +40,49 @@ export function LoginScreen() {
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
-      setErrorMsg('Please enter both your email address and password.');
+      setErrorMsg("Please enter both your email address and password.");
       return;
     }
 
-    setErrorMsg('');
-    setSuccessMsg('');
+    setErrorMsg("");
+    setSuccessMsg("");
     setIsLoading(true);
     const res = await login(email.trim(), password.trim());
     setIsLoading(false);
 
     if (!res.success) {
-      setErrorMsg(res.error || 'Invalid email or password. Please verify your credentials.');
+      setErrorMsg(
+        res.error ||
+          "Invalid email or password. Please verify your credentials.",
+      );
     }
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) {
-      setErrorMsg('Please provide your corporate email address to receive password reset instructions.');
+      setErrorMsg(
+        "Please provide your corporate email address to receive password reset instructions.",
+      );
       return;
     }
 
-    setErrorMsg('');
-    setSuccessMsg('');
+    setErrorMsg("");
+    setSuccessMsg("");
     setIsResetting(true);
     const res = await resetPassword(email.trim());
     setIsResetting(false);
 
     if (res.success) {
-      setSuccessMsg(`Password reset link sent to ${email.trim()}. Please check your inbox.`);
+      setSuccessMsg(
+        `Password reset link sent to ${email.trim()}. Please check your inbox.`,
+      );
       setShowForgot(false);
     } else {
-      setErrorMsg(res.error || 'Failed to send password reset link. Please check the email address.');
+      setErrorMsg(
+        res.error ||
+          "Failed to send password reset link. Please check the email address.",
+      );
     }
   };
 
@@ -70,9 +95,13 @@ export function LoginScreen() {
           size="icon"
           onClick={toggleTheme}
           className="text-muted-foreground hover:text-foreground"
-          title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+          title={theme === "dark" ? "Light Mode" : "Dark Mode"}
         >
-          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {theme === "dark" ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
         </Button>
       </div>
 
@@ -87,9 +116,11 @@ export function LoginScreen() {
           <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-zinc-900 text-zinc-50 dark:bg-zinc-50 dark:text-zinc-900 shadow-xs mb-1">
             <Wallet className="h-5 w-5" />
           </div>
-          <h1 className="text-xl font-bold tracking-tight">TRF Portal</h1>
+          <h1 className="text-xl font-bold tracking-tight">
+            Vicenna TRF Portal
+          </h1>
           <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-            Team Recreational Funds management and company audit system
+            Team Recreational Funds management system
           </p>
         </div>
 
@@ -97,12 +128,12 @@ export function LoginScreen() {
         <Card className="border-border">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold">
-              {showForgot ? 'Reset Password' : 'Sign In'}
+              {showForgot ? "Reset Password" : "Sign In"}
             </CardTitle>
             <CardDescription className="text-xs">
               {showForgot
-                ? 'Enter your account email to receive a password reset link'
-                : 'Enter your credentials to access the TRF portal'}
+                ? "Enter your account email to receive a password reset link"
+                : "Enter your credentials to access the TRF portal"}
             </CardDescription>
           </CardHeader>
 
@@ -143,8 +174,8 @@ export function LoginScreen() {
                       type="button"
                       onClick={() => {
                         setShowForgot(true);
-                        setErrorMsg('');
-                        setSuccessMsg('');
+                        setErrorMsg("");
+                        setSuccessMsg("");
                       }}
                       className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2"
                     >
@@ -162,8 +193,14 @@ export function LoginScreen() {
                   />
                 </div>
 
-                <Button type="submit" className="w-full gap-2 mt-1" disabled={isLoading}>
-                  <span>{isLoading ? 'Verifying Credentials...' : 'Sign In'}</span>
+                <Button
+                  type="submit"
+                  className="w-full gap-2 mt-1"
+                  disabled={isLoading}
+                >
+                  <span>
+                    {isLoading ? "Verifying Credentials..." : "Sign In"}
+                  </span>
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Button>
               </form>
@@ -188,7 +225,7 @@ export function LoginScreen() {
                     className="flex-1"
                     onClick={() => {
                       setShowForgot(false);
-                      setErrorMsg('');
+                      setErrorMsg("");
                     }}
                   >
                     Back to Sign In
@@ -199,7 +236,7 @@ export function LoginScreen() {
                     disabled={isResetting}
                   >
                     <KeyRound className="h-3.5 w-3.5" />
-                    <span>{isResetting ? 'Sending...' : 'Send Link'}</span>
+                    <span>{isResetting ? "Sending..." : "Send Link"}</span>
                   </Button>
                 </div>
               </form>

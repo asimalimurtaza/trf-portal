@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Vicenna-AlmusNet TRF Portal",
-  description: "Vicenna-AlmusNet Team Recreational Funds",
+  title: "Vicenna TRF Portal",
+  description: "Vicenna Team Recreational Funds",
 };
 
 export default function RootLayout({

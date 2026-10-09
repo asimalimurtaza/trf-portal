@@ -11,7 +11,8 @@ import {
   Edit2,
   Trash2,
   SlidersHorizontal,
-  Settings2
+  Settings2,
+  Search,
 } from 'lucide-react';
 import {
   Card,
@@ -23,6 +24,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -58,6 +60,21 @@ export function RulesTreatsView({ onOpenNewTreat }: RulesTreatsViewProps) {
   const [editingRule, setEditingRule] = useState<ContributionRule | null>(null);
   const [isAddRuleOpen, setIsAddRuleOpen] = useState(false);
   const [isRatesModalOpen, setIsRatesModalOpen] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'official' | 'personal'>('all');
+  const [ruleSearch, setRuleSearch] = useState('');
+
+  const filteredRules = rules.filter((r) => {
+    if (categoryFilter === 'official' && !r.title.toLowerCase().startsWith('official')) return false;
+    if (categoryFilter === 'personal' && !r.title.toLowerCase().startsWith('personal')) return false;
+    if (ruleSearch.trim()) {
+      const q = ruleSearch.toLowerCase();
+      return r.title.toLowerCase().includes(q) || r.description.toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  const officialCount = rules.filter((r) => r.title.toLowerCase().startsWith('official')).length;
+  const personalCount = rules.filter((r) => r.title.toLowerCase().startsWith('personal')).length;
 
   return (
     <motion.div
@@ -116,7 +133,7 @@ export function RulesTreatsView({ onOpenNewTreat }: RulesTreatsViewProps) {
 
       {/* Guidelines & Configured Rules Grid */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div>
             <h3 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
               Contribution Guidelines & Rates ({rules.length})
@@ -126,21 +143,64 @@ export function RulesTreatsView({ onOpenNewTreat }: RulesTreatsViewProps) {
             </p>
           </div>
 
-          {isManager && (
+          <div className="flex items-center gap-1.5 self-start sm:self-auto">
+            {isManager && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsAddRuleOpen(true)}
+                className="text-xs gap-1 h-7 text-zinc-600 dark:text-zinc-400"
+              >
+                <Plus className="h-3 w-3" />
+                <span>New Rule</span>
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Filter Tabs & Search */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-1">
+          <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
             <Button
-              variant="ghost"
+              variant={categoryFilter === 'all' ? 'secondary' : 'ghost'}
               size="sm"
-              onClick={() => setIsAddRuleOpen(true)}
-              className="text-xs gap-1 h-7 text-zinc-600 dark:text-zinc-400"
+              onClick={() => setCategoryFilter('all')}
+              className="h-8 text-xs font-medium"
             >
-              <Plus className="h-3 w-3" />
-              <span>New Rule</span>
+              All Rules ({rules.length})
             </Button>
-          )}
+            <Button
+              variant={categoryFilter === 'official' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setCategoryFilter('official')}
+              className="h-8 text-xs font-medium"
+            >
+              Official ({officialCount})
+            </Button>
+            <Button
+              variant={categoryFilter === 'personal' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setCategoryFilter('personal')}
+              className="h-8 text-xs font-medium"
+            >
+              Personal ({personalCount})
+            </Button>
+          </div>
+
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+            <Input
+              type="text"
+              value={ruleSearch}
+              onChange={(e) => setRuleSearch(e.target.value)}
+              placeholder="Search rules..."
+              className="pl-8 h-8 text-xs"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {rules.map((rule) => (
+          {filteredRules.map((rule) => (
             <Card key={rule.id} className="flex flex-col justify-between hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between gap-2">

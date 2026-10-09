@@ -2,6 +2,7 @@ export type UserRole = 'manager' | 'member';
 
 export interface UserProfile {
   id: string;
+  employeeId?: string; // Employee ID e.g. TL-1001
   name: string;
   email: string;
   role: UserRole;
@@ -67,6 +68,7 @@ export interface ContributionRule {
   suggestedAmount: number; // PKR
   icon: string; // icon identifier
   isMandatory: boolean;
+  category?: 'official' | 'personal';
 }
 
 export interface MemberTreatEvent {
