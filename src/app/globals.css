@@ -123,37 +123,37 @@ body {
 @keyframes dialogContentShow {
   from {
     opacity: 0;
-    transform: translate(-50%, -47%) scale(0.96);
+    transform: scale(0.96);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: scale(1);
   }
 }
 
 @keyframes dialogContentHide {
   from {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: scale(1);
   }
   to {
     opacity: 0;
-    transform: translate(-50%, -48%) scale(0.97);
+    transform: scale(0.98);
   }
 }
 
 .modal-overlay[data-state='open'] {
-  animation: dialogOverlayShow 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: dialogOverlayShow 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .modal-overlay[data-state='closed'] {
-  animation: dialogOverlayHide 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: dialogOverlayHide 140ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .modal-content[data-state='open'] {
-  animation: dialogContentShow 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: dialogContentShow 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .modal-content[data-state='closed'] {
-  animation: dialogContentHide 160ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: dialogContentHide 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

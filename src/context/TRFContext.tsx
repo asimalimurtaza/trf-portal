@@ -566,8 +566,12 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: 'Database service is unavailable.' };
     }
     try {
+      const siteUrl =
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        (typeof window !== 'undefined' && window.location.origin ? window.location.origin : '');
+
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+        redirectTo: siteUrl ? `${siteUrl.replace(/\/$/, '')}/` : undefined,
       });
       if (error) {
         return { success: false, error: error.message };
@@ -900,10 +904,15 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     // 1. If Supabase configured and password given, create in Supabase Auth
     if (isSupabaseConfigured && supabase && data.password) {
       try {
+        const siteUrl =
+          process.env.NEXT_PUBLIC_SITE_URL ||
+          (typeof window !== 'undefined' && window.location.origin ? window.location.origin : '');
+
         const { data: authData, error: authErr } = await supabase.auth.signUp({
           email: data.email.trim(),
           password: data.password,
           options: {
+            emailRedirectTo: siteUrl ? `${siteUrl.replace(/\/$/, '')}/` : undefined,
             data: {
               name: data.name,
               role: data.role,

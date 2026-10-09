@@ -31,20 +31,22 @@ const DialogContent = React.forwardRef<
 >(({ className, children, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        "modal-content fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-lg max-h-[88vh] overflow-y-auto translate-x-[-50%] translate-y-[-50%] gap-4 rounded-xl border border-zinc-200 bg-white p-5 sm:p-6 shadow-2xl dark:border-zinc-800 dark:bg-zinc-950 outline-none",
-        className
-      )}
-      {...props}
-    >
-      {children}
-      <DialogPrimitive.Close className="absolute right-3.5 top-3.5 rounded-md p-1 opacity-70 transition-opacity hover:opacity-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 focus:outline-none disabled:pointer-events-none">
-        <X className="h-4 w-4 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100" />
-        <span className="sr-only">Close</span>
-      </DialogPrimitive.Close>
-    </DialogPrimitive.Content>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto pointer-events-none">
+      <DialogPrimitive.Content
+        ref={ref}
+        className={cn(
+          "modal-content pointer-events-auto relative w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-xl border border-zinc-200 bg-white p-5 sm:p-6 shadow-2xl dark:border-zinc-800 dark:bg-zinc-950 outline-none my-auto",
+          className
+        )}
+        {...props}
+      >
+        {children}
+        <DialogPrimitive.Close className="absolute right-3.5 top-3.5 rounded-md p-1 opacity-70 transition-opacity hover:opacity-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 focus:outline-none disabled:pointer-events-none">
+          <X className="h-4 w-4 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100" />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
+      </DialogPrimitive.Content>
+    </div>
   </DialogPortal>
 ));
 DialogContent.displayName = DialogPrimitive.Content.displayName;
