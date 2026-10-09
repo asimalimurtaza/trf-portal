@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTRF } from '@/context/TRFContext';
 import { formatPKR, formatDate } from '@/lib/utils';
 import {
@@ -56,18 +56,19 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
   const [editingActivity, setEditingActivity] = useState<PlannedActivity | null>(null);
   const [completingActivity, setCompletingActivity] = useState<PlannedActivity | null>(null);
 
-  // New Outing Form State
   const [actTitle, setActTitle] = useState('');
   const [actVenueName, setActVenueName] = useState('');
-  const [actDate, setActDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 14);
-    return d.toISOString().split('T')[0];
-  });
+  const [actDate, setActDate] = useState('');
   const [actTime, setActTime] = useState('8:00 PM');
   const [actTotalBudget, setActTotalBudget] = useState('15000');
   const [actTrfShare, setActTrfShare] = useState('10000');
   const [actDesc, setActDesc] = useState('');
+
+  useEffect(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 14);
+    setActDate(d.toISOString().split('T')[0]);
+  }, []);
 
   const handleCreateActivity = async (e: React.FormEvent) => {
     e.preventDefault();

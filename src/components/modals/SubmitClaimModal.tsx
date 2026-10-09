@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTRF } from '@/context/TRFContext';
 import { formatPKR } from '@/lib/utils';
 import {
@@ -23,15 +23,19 @@ interface SubmitClaimModalProps {
 export function SubmitClaimModal({ isOpen, onClose }: SubmitClaimModalProps) {
   const { createAuditClaim, activeHeadcount, monthlyPerHeadRate } = useTRF();
 
-  const [monthYear, setMonthYear] = useState(() => {
-    return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  });
+  const [monthYear, setMonthYear] = useState('');
   const [headcount, setHeadcount] = useState<number>(activeHeadcount);
-  const [claimRefNumber, setClaimRefNumber] = useState(() => {
-    const d = new Date();
-    return `TRF-AUD-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  });
+  const [claimRefNumber, setClaimRefNumber] = useState('');
   const [auditNotes, setAuditNotes] = useState('Monthly TRF allowance claim submitted for internal audit verification.');
+
+  useEffect(() => {
+    if (isOpen) {
+      const d = new Date();
+      setMonthYear(d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
+      setClaimRefNumber(`TRF-AUD-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+      setHeadcount(activeHeadcount);
+    }
+  }, [isOpen, activeHeadcount]);
 
   const totalCalculated = (headcount || 0) * monthlyPerHeadRate;
 

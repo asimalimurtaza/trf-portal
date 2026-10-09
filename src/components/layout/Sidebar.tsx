@@ -1,6 +1,6 @@
-"use client";
-
 import React, { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useTRF } from "@/context/TRFContext";
 import { useTheme } from "@/context/ThemeContext";
 import {
@@ -31,8 +31,8 @@ export type NavTab =
   | "messages";
 
 interface SidebarProps {
-  activeTab: NavTab;
-  onTabChange: (tab: NavTab) => void;
+  activeTab?: NavTab;
+  onTabChange?: (tab: NavTab) => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   onOpenProfile?: () => void;
@@ -45,6 +45,7 @@ export function Sidebar({
   onToggleCollapse,
   onOpenProfile,
 }: SidebarProps) {
+  const pathname = usePathname() || "/dashboard";
   const { currentUser, isManager, unreadDirectMessagesCount } = useTRF();
   const { theme, toggleTheme } = useTheme();
   const [isHovered, setIsHovered] = useState(false);
@@ -52,20 +53,32 @@ export function Sidebar({
   // Expanded if manually uncollapsed (pinned) OR currently hovered by mouse
   const isExpanded = !isCollapsed || isHovered;
 
+  const resolvedTab: NavTab = activeTab || (() => {
+    if (pathname.startsWith("/dashboard/chat")) return "messages";
+    if (pathname.startsWith("/dashboard/treat-rules")) return "rules-treats";
+    if (pathname.startsWith("/dashboard/ledger")) return "ledger";
+    if (pathname.startsWith("/dashboard/claims")) return "audit-claims";
+    if (pathname.startsWith("/dashboard/birthdays")) return "birthdays";
+    if (pathname.startsWith("/dashboard/outings")) return "activities-venues";
+    if (pathname.startsWith("/dashboard/members")) return "members";
+    return "overview";
+  })();
+
   const navItems: {
     id: NavTab;
+    href: string;
     label: string;
     icon: React.ElementType;
     badge?: number;
   }[] = [
-    { id: "overview", label: "Dashboard", icon: LayoutDashboard },
-    { id: "ledger", label: "Funds Ledger", icon: Receipt },
-    { id: "audit-claims", label: "Audit Claims", icon: FileSpreadsheet },
-    { id: "birthdays", label: "Birthdays", icon: Cake },
-    { id: "activities-venues", label: "Places & Outings", icon: Compass },
-    { id: "rules-treats", label: "Treats & Rules", icon: Gift },
-    { id: "members", label: "Team & Fees", icon: Users },
-    { id: "messages", label: "Direct Messages", icon: MessageSquare, badge: unreadDirectMessagesCount },
+    { id: "overview", href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "ledger", href: "/dashboard/ledger", label: "Funds Ledger", icon: Receipt },
+    { id: "audit-claims", href: "/dashboard/claims", label: "Audit Claims", icon: FileSpreadsheet },
+    { id: "birthdays", href: "/dashboard/birthdays", label: "Birthdays", icon: Cake },
+    { id: "activities-venues", href: "/dashboard/outings", label: "Places & Outings", icon: Compass },
+    { id: "rules-treats", href: "/dashboard/treat-rules", label: "Treats & Rules", icon: Gift },
+    { id: "members", href: "/dashboard/members", label: "Team & Fees", icon: Users },
+    { id: "messages", href: "/dashboard/chat", label: "Direct Messages", icon: MessageSquare, badge: unreadDirectMessagesCount },
   ];
 
   return (
@@ -116,11 +129,12 @@ export function Sidebar({
         <nav className="p-2 space-y-0.5">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activeTab === item.id;
+            const isActive = resolvedTab === item.id;
             return (
-              <button
+              <Link
                 key={item.id}
-                onClick={() => onTabChange(item.id)}
+                href={item.href}
+                onClick={() => onTabChange?.(item.id)}
                 title={!isExpanded ? item.label : undefined}
                 className={`w-full flex items-center gap-3 rounded-md px-2.5 py-2 text-xs font-medium transition-colors cursor-pointer ${
                   !isExpanded ? "justify-center px-0" : ""
@@ -150,7 +164,7 @@ export function Sidebar({
                     )}
                   </div>
                 )}
-              </button>
+              </Link>
             );
           })}
         </nav>

@@ -233,3 +233,7 @@ create policy "Allow sender to insert direct messages"
 create policy "Allow receiver to update read status" 
   on public.direct_messages for update to authenticated
   using (auth.uid() = receiver_id);
+
+-- Enable Supabase Realtime broadcast for direct_messages
+alter publication supabase_realtime add table public.direct_messages;
+alter table public.direct_messages replica identity full;

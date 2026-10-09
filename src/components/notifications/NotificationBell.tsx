@@ -22,6 +22,19 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import { useRouter } from 'next/navigation';
+
+const TAB_ROUTES: Record<NavTab, string> = {
+  overview: '/dashboard',
+  ledger: '/dashboard/ledger',
+  'audit-claims': '/dashboard/claims',
+  birthdays: '/dashboard/birthdays',
+  'activities-venues': '/dashboard/outings',
+  'rules-treats': '/dashboard/treat-rules',
+  members: '/dashboard/members',
+  messages: '/dashboard/chat',
+};
+
 interface NotificationBellProps {
   onNavigateTab?: (tab: NavTab) => void;
 }
@@ -65,6 +78,7 @@ function formatRelativeTime(dateString: string): string {
 }
 
 export function NotificationBell({ onNavigateTab }: NotificationBellProps) {
+  const router = useRouter();
   const {
     notifications,
     unreadNotificationsCount,
@@ -102,8 +116,14 @@ export function NotificationBell({ onNavigateTab }: NotificationBellProps) {
     if (!n.isRead) {
       markNotificationAsRead(n.id);
     }
-    if (n.targetTab && onNavigateTab) {
-      onNavigateTab(n.targetTab);
+    if (n.targetTab) {
+      if (onNavigateTab) {
+        onNavigateTab(n.targetTab);
+      }
+      const targetUrl = TAB_ROUTES[n.targetTab];
+      if (targetUrl) {
+        router.push(targetUrl);
+      }
       setIsOpen(false);
     }
   };

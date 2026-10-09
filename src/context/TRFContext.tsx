@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   UserProfile,
   Transaction,
@@ -284,6 +284,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     return INITIAL_DIRECT_MESSAGES;
   });
   const [activeChatUserId, setActiveChatUserId] = useState<string | null>(null);
+  const realtimeChatChannelRef = useRef<any>(null);
 
   // 1. Initial Load: LocalStorage & Supabase Hydration
   useEffect(() => {
@@ -617,12 +618,93 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isLoaded, directMessages]);
 
-  // Supabase Realtime for Direct Messages
+  // Cross-Tab & Multi-Window Instant Messaging Broadcast (0ms latency)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        bc = new BroadcastChannel('trf_portal_chat_v1');
+        bc.onmessage = (event) => {
+          if (event.data?.type === 'NEW_MESSAGE' && event.data.message) {
+            const msg: DirectMessage = event.data.message;
+            setDirectMessages((prev) => {
+              if (prev.some((m) => m.id === msg.id)) return prev;
+              return [...prev, msg];
+            });
+            if (msg.receiverId === currentUser.id && msg.senderId !== currentUser.id) {
+              const senderObj = members.find((m) => m.id === msg.senderId);
+              addNotification({
+                title: `New Message from ${senderObj?.name || 'Teammate'}`,
+                message: msg.content.length > 60 ? msg.content.substring(0, 60) + '...' : msg.content,
+                type: 'message',
+                targetTab: 'messages',
+                actionLabel: 'Open Chat',
+              });
+            }
+          } else if (event.data?.type === 'MARK_READ' && event.data.partnerId) {
+            const partnerId = event.data.partnerId;
+            setDirectMessages((prev) =>
+              prev.map((m) => (m.senderId === partnerId ? { ...m, isRead: true } : m))
+            );
+          }
+        };
+      }
+    } catch {}
+
+    return () => {
+      bc?.close();
+    };
+  }, [currentUser.id, members]);
+
+  // Supabase Realtime & Broadcast for Direct Messages (<50ms latency)
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
 
     const channel = supabase
-      .channel('trf_direct_messages_realtime')
+      .channel('trf_direct_messages_realtime', {
+        config: { broadcast: { self: false } },
+      })
+      .on(
+        'broadcast',
+        { event: 'new_message' },
+        (payload) => {
+          const incomingMsg = payload.payload as DirectMessage;
+          if (!incomingMsg) return;
+
+          setDirectMessages((prev) => {
+            if (prev.some((m) => m.id === incomingMsg.id)) return prev;
+            return [...prev, incomingMsg];
+          });
+
+          if (incomingMsg.receiverId === currentUser.id && incomingMsg.senderId !== currentUser.id) {
+            const senderObj = members.find((m) => m.id === incomingMsg.senderId);
+            addNotification({
+              title: `New Message from ${senderObj?.name || 'Teammate'}`,
+              message:
+                incomingMsg.content.length > 60
+                  ? incomingMsg.content.substring(0, 60) + '...'
+                  : incomingMsg.content,
+              type: 'message',
+              targetTab: 'messages',
+              actionLabel: 'Open Chat',
+            });
+          }
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'mark_read' },
+        (payload) => {
+          const { partnerId } = payload.payload || {};
+          if (partnerId) {
+            setDirectMessages((prev) =>
+              prev.map((m) => (m.senderId === partnerId ? { ...m, isRead: true } : m))
+            );
+          }
+        }
+      )
       .on(
         'postgres_changes',
         {
@@ -648,7 +730,6 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
             return [...prev, incomingMsg];
           });
 
-          // Trigger in-app notification if message is addressed to currentUser
           if (incomingMsg.receiverId === currentUser.id && incomingMsg.senderId !== currentUser.id) {
             const senderObj = members.find((m) => m.id === incomingMsg.senderId);
             addNotification({
@@ -683,12 +764,49 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       )
       .subscribe();
 
+    realtimeChatChannelRef.current = channel;
+
     return () => {
       if (supabase) {
         supabase.removeChannel(channel);
       }
     };
   }, [isSupabaseConfigured, currentUser.id, members]);
+
+  // Live Background Polling (Every 2.5s fallback so messages NEVER require a page refresh)
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+    const client = supabase;
+
+    const interval = setInterval(async () => {
+      try {
+        const { data, error } = await client
+          .from('direct_messages')
+          .select('*')
+          .order('created_at', { ascending: true });
+
+        if (data && !error && data.length > 0) {
+          const mapped: DirectMessage[] = data.map((d) => ({
+            id: d.id,
+            senderId: d.sender_id,
+            receiverId: d.receiver_id,
+            content: d.content,
+            isRead: Boolean(d.is_read),
+            createdAt: d.created_at,
+          }));
+
+          setDirectMessages((prev) => {
+            if (mapped.length !== prev.length || mapped.some((m, idx) => prev[idx]?.id !== m.id || prev[idx]?.isRead !== m.isRead)) {
+              return mapped;
+            }
+            return prev;
+          });
+        }
+      } catch {}
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [isSupabaseConfigured]);
 
   // Dynamic system notifications synchronization
   useEffect(() => {
@@ -848,6 +966,25 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
 
     setDirectMessages((prev) => [...prev, newMsg]);
 
+    // 1. Broadcast immediately across open tabs (0ms latency)
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        const bc = new BroadcastChannel('trf_portal_chat_v1');
+        bc.postMessage({ type: 'NEW_MESSAGE', message: newMsg });
+        bc.close();
+      }
+    } catch {}
+
+    // 2. Broadcast immediately over Supabase Realtime WebSocket (<50ms latency)
+    try {
+      realtimeChatChannelRef.current?.send({
+        type: 'broadcast',
+        event: 'new_message',
+        payload: newMsg,
+      });
+    } catch {}
+
+    // 3. Persist to Supabase DB table
     if (isSupabaseConfigured && supabase) {
       try {
         const { error } = await supabase.from('direct_messages').insert([
@@ -877,6 +1014,22 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
           : m
       )
     );
+
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        const bc = new BroadcastChannel('trf_portal_chat_v1');
+        bc.postMessage({ type: 'MARK_READ', partnerId });
+        bc.close();
+      }
+    } catch {}
+
+    try {
+      realtimeChatChannelRef.current?.send({
+        type: 'broadcast',
+        event: 'mark_read',
+        payload: { partnerId },
+      });
+    } catch {}
 
     if (isSupabaseConfigured && supabase) {
       try {

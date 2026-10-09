@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { useTRF } from "@/context/TRFContext";
 import { useTheme } from "@/context/ThemeContext";
 import { formatPKR } from "@/lib/utils";
@@ -36,6 +37,7 @@ export function Navbar({
   onToggleSidebar,
   onNavigateTab,
 }: NavbarProps) {
+  const router = useRouter();
   const { currentUser, isManager, currentBalance, unreadDirectMessagesCount, logout } = useTRF();
   const { theme, toggleTheme } = useTheme();
 
@@ -71,7 +73,10 @@ export function Navbar({
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => onNavigateTab?.("messages")}
+            onClick={() => {
+              if (onNavigateTab) onNavigateTab("messages");
+              router.push("/dashboard/chat");
+            }}
             className="relative text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
             title="Direct Messages"
             aria-label="Direct Messages"
