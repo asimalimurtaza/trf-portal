@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TRFProvider } from '@/context/TRFContext';
+import { ThemeProvider } from '@/context/ThemeContext';
 import { Navbar } from '@/components/layout/Navbar';
 import { Sidebar, NavTab } from '@/components/layout/Sidebar';
 import { OverviewView } from '@/components/sections/OverviewView';
@@ -32,6 +33,7 @@ import {
 
 function DashboardContent() {
   const [activeTab, setActiveTab] = useState<NavTab>('overview');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Modals state
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
@@ -40,21 +42,56 @@ function DashboardContent() {
   const [isVenueModalOpen, setIsVenueModalOpen] = useState(false);
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
 
+  // Restore sidebar state preference from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('trf_sidebar_collapsed');
+      if (saved !== null) {
+        setIsSidebarCollapsed(saved === 'true');
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const toggleSidebarCollapse = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('trf_sidebar_collapsed', String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-[#090d16] text-slate-100">
-      {/* Top Navbar */}
-      <Navbar
-        onOpenNewTransaction={() => setIsTransactionModalOpen(true)}
-        onOpenNewClaim={() => setIsClaimModalOpen(true)}
-        onOpenNewTreat={() => setIsTreatModalOpen(true)}
+    <div className="min-h-screen bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 transition-colors duration-200">
+      {/* 1. Fixed Sidebar Component */}
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={toggleSidebarCollapse}
       />
 
-      <div className="flex-1 flex max-w-7xl w-full mx-auto">
-        {/* Desktop Sidebar */}
-        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      {/* 2. Main Layout Area (Automatically adjusts margin when sidebar expands/collapses) */}
+      <div
+        className={`min-h-screen flex flex-col transition-all duration-300 ease-in-out ${
+          isSidebarCollapsed ? 'md:pl-20' : 'md:pl-64'
+        }`}
+      >
+        {/* Top Navbar */}
+        <Navbar
+          onOpenNewTransaction={() => setIsTransactionModalOpen(true)}
+          onOpenNewClaim={() => setIsClaimModalOpen(true)}
+          onOpenNewTreat={() => setIsTreatModalOpen(true)}
+          onToggleSidebar={toggleSidebarCollapse}
+        />
 
-        {/* Main Content Area */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto pb-24 md:pb-8">
+        {/* Dynamic Main Content Views */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto pb-24 md:pb-12">
           {activeTab === 'overview' && (
             <OverviewView
               onNavigateTab={setActiveTab}
@@ -103,11 +140,13 @@ function DashboardContent() {
       </div>
 
       {/* Mobile Bottom Navigation Bar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 border-t border-slate-800 backdrop-blur-lg px-2 py-1.5 flex items-center justify-around">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/95 border-t border-slate-200 dark:border-slate-800 backdrop-blur-lg px-2 py-1.5 flex items-center justify-around">
         <button
           onClick={() => setActiveTab('overview')}
           className={`flex flex-col items-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors ${
-            activeTab === 'overview' ? 'text-emerald-400 font-bold' : 'text-slate-400'
+            activeTab === 'overview'
+              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+              : 'text-slate-500 dark:text-slate-400'
           }`}
         >
           <LayoutDashboard className="h-4 w-4" />
@@ -116,7 +155,9 @@ function DashboardContent() {
         <button
           onClick={() => setActiveTab('ledger')}
           className={`flex flex-col items-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors ${
-            activeTab === 'ledger' ? 'text-emerald-400 font-bold' : 'text-slate-400'
+            activeTab === 'ledger'
+              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+              : 'text-slate-500 dark:text-slate-400'
           }`}
         >
           <Receipt className="h-4 w-4" />
@@ -125,7 +166,9 @@ function DashboardContent() {
         <button
           onClick={() => setActiveTab('audit-claims')}
           className={`flex flex-col items-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors ${
-            activeTab === 'audit-claims' ? 'text-cyan-400 font-bold' : 'text-slate-400'
+            activeTab === 'audit-claims'
+              ? 'text-cyan-600 dark:text-cyan-400 font-bold'
+              : 'text-slate-500 dark:text-slate-400'
           }`}
         >
           <FileSpreadsheet className="h-4 w-4" />
@@ -134,7 +177,9 @@ function DashboardContent() {
         <button
           onClick={() => setActiveTab('birthdays')}
           className={`flex flex-col items-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors ${
-            activeTab === 'birthdays' ? 'text-pink-400 font-bold' : 'text-slate-400'
+            activeTab === 'birthdays'
+              ? 'text-pink-600 dark:text-pink-400 font-bold'
+              : 'text-slate-500 dark:text-slate-400'
           }`}
         >
           <Cake className="h-4 w-4" />
@@ -143,7 +188,9 @@ function DashboardContent() {
         <button
           onClick={() => setActiveTab('activities-venues')}
           className={`flex flex-col items-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors ${
-            activeTab === 'activities-venues' ? 'text-cyan-400 font-bold' : 'text-slate-400'
+            activeTab === 'activities-venues'
+              ? 'text-cyan-600 dark:text-cyan-400 font-bold'
+              : 'text-slate-500 dark:text-slate-400'
           }`}
         >
           <Compass className="h-4 w-4" />
@@ -152,7 +199,9 @@ function DashboardContent() {
         <button
           onClick={() => setActiveTab('rules-treats')}
           className={`flex flex-col items-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors ${
-            activeTab === 'rules-treats' ? 'text-purple-400 font-bold' : 'text-slate-400'
+            activeTab === 'rules-treats'
+              ? 'text-purple-600 dark:text-purple-400 font-bold'
+              : 'text-slate-500 dark:text-slate-400'
           }`}
         >
           <Gift className="h-4 w-4" />
@@ -191,8 +240,10 @@ function DashboardContent() {
 
 export default function Home() {
   return (
-    <TRFProvider>
-      <DashboardContent />
-    </TRFProvider>
+    <ThemeProvider>
+      <TRFProvider>
+        <DashboardContent />
+      </TRFProvider>
+    </ThemeProvider>
   );
 }

@@ -41,7 +41,6 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
       relatedMemberId: relatedMemberId || undefined,
     });
 
-    // Reset and close
     setTitle('');
     setAmount('');
     setDescription('');
@@ -49,29 +48,29 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+      <div className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
               <Receipt className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">Log Fund Transaction</h3>
-              <p className="text-xs text-slate-400">Record a TRF expense or manual fund deposit</p>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Log Fund Transaction</h3>
+              <p className="text-xs text-slate-500">Record an expense or manual fund deposit</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="rounded-lg p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-          {/* Type Toggle: Outflow vs Inflow */}
-          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-950 border border-slate-800">
+          {/* Type Toggle */}
+          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
             <button
               type="button"
               onClick={() => {
@@ -80,8 +79,8 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
               }}
               className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${
                 type === 'outflow'
-                  ? 'bg-rose-500 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-rose-600 text-white shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400'
               }`}
             >
               <ArrowDownRight className="h-4 w-4" />
@@ -95,8 +94,8 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
               }}
               className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${
                 type === 'inflow'
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400'
               }`}
             >
               <ArrowUpRight className="h-4 w-4" />
@@ -104,25 +103,23 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
             </button>
           </div>
 
-          {/* Title */}
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
-              Transaction Title *
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Title *
             </label>
             <input
               type="text"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder={type === 'outflow' ? 'e.g. Dinner at Monal, Birthday Cake' : 'e.g. New Phone Treat - Hamza'}
-              className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+              placeholder="e.g. Dinner at Roasters, Birthday Cake"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-emerald-500 focus:outline-none"
             />
           </div>
 
-          {/* Amount & Date Grid */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Amount (PKR) *
               </label>
               <input
@@ -132,12 +129,12 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
                 step="50"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="e.g. 4500"
-                className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+                placeholder="4500"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-emerald-500 focus:outline-none"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Date *
               </label>
               <input
@@ -145,50 +142,48 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
                 required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-xs text-white focus:border-emerald-500 focus:outline-none"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
               />
             </div>
           </div>
 
-          {/* Category */}
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
               Category
             </label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value as TransactionCategory)}
-              className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-xs text-white focus:border-emerald-500 focus:outline-none"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
             >
               {type === 'outflow' ? (
                 <>
                   <option value="team_dinner">Team Dinner / Lunch</option>
                   <option value="snacks_refreshment">Snacks, Tea & Refreshments</option>
                   <option value="birthday_cake">Birthday Cake & Celebration</option>
-                  <option value="activity_outing">Recreational Outing / Gaming / Bowling</option>
-                  <option value="miscellaneous">Miscellaneous Expense</option>
+                  <option value="activity_outing">Outing / Gaming / Bowling</option>
+                  <option value="miscellaneous">Miscellaneous</option>
                 </>
               ) : (
                 <>
-                  <option value="company_claim">Company Audit Allowance</option>
-                  <option value="joining_fee">New Member Joining Fee</option>
-                  <option value="treat_event">Member Treat / Gadget Celebration</option>
-                  <option value="fine_penalty">Standup Fine / Fun Penalty</option>
-                  <option value="miscellaneous">Other Contribution</option>
+                  <option value="company_claim">Company Allowance (1,400)</option>
+                  <option value="joining_fee">Joining Fee</option>
+                  <option value="treat_event">Member Treat / Gadget</option>
+                  <option value="fine_penalty">Standup Fine</option>
+                  <option value="miscellaneous">Other Deposit</option>
                 </>
               )}
             </select>
           </div>
 
-          {/* Related Member (if applicable) */}
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
               Associated Member (Optional)
             </label>
             <select
               value={relatedMemberId}
               onChange={(e) => setRelatedMemberId(e.target.value)}
-              className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-xs text-white focus:border-emerald-500 focus:outline-none"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
             >
               <option value="">None / Whole Team</option>
               {members.map((m) => (
@@ -199,32 +194,30 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
             </select>
           </div>
 
-          {/* Description / Notes */}
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
-              Description / Audit Proof Notes
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Description / Notes
             </label>
             <textarea
               rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g. Receipt verified, paid via cash by Asim Khan"
-              className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+              placeholder="e.g. Receipt verified, paid by Asim"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-emerald-500 focus:outline-none"
             />
           </div>
 
-          {/* Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl px-4 py-2 text-xs font-medium text-slate-400 hover:text-white transition-colors"
+              className="rounded-xl px-4 py-2 text-xs font-medium text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-5 py-2 text-xs font-bold text-white shadow-lg transition-all"
+              className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-5 py-2 text-xs font-bold text-white shadow-xs transition-all"
             >
               Save Transaction
             </button>
