@@ -178,31 +178,43 @@ export function OverviewView({
 
         {/* Right Column (1 Col): Focused Quick Highlights */}
         <div className="space-y-4">
-          {/* Next Birthday */}
-          {nextBirthday && (
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-xs font-medium text-zinc-500">Upcoming Birthday</CardTitle>
+          {/* Next Birthday (Only if within 7 days) */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-medium text-zinc-500">Upcoming Birthday</CardTitle>
+              {nextBirthday && nextBirthday.countdown.daysLeft <= 7 ? (
                 <Badge variant="outline" className="text-[10px]">
                   {nextBirthday.countdown.isToday ? 'Today' : `In ${nextBirthday.countdown.daysLeft}d`}
                 </Badge>
-              </CardHeader>
-              <CardContent className="flex items-center justify-between pt-1">
-                <div>
-                  <div className="text-sm font-semibold">{nextBirthday.member.name}</div>
-                  <div className="text-xs text-zinc-500">{nextBirthday.member.designation}</div>
+              ) : (
+                <Badge variant="outline" className="text-[10px] text-zinc-400">
+                  Next 7 Days
+                </Badge>
+              )}
+            </CardHeader>
+            <CardContent className="flex items-center justify-between pt-1">
+              {nextBirthday && nextBirthday.countdown.daysLeft <= 7 ? (
+                <>
+                  <div>
+                    <div className="text-sm font-semibold">{nextBirthday.member.name}</div>
+                    <div className="text-xs text-zinc-500">{nextBirthday.member.designation}</div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={triggerCelebration}
+                    className="text-xs"
+                  >
+                    Celebrate
+                  </Button>
+                </>
+              ) : (
+                <div className="text-xs text-zinc-400 py-1">
+                  No birthdays scheduled in the next 7 days
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={triggerCelebration}
-                  className="text-xs"
-                >
-                  Celebrate
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </CardContent>
+          </Card>
 
           {/* Top Voted Venue */}
           {topVenue && (

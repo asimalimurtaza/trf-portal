@@ -213,43 +213,96 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
           setIsAuthenticated(savedAuth === 'true');
         }
 
-        // Try Supabase fetch if configured
+        // Direct Supabase fetch if configured (Supabase is single source of truth)
         if (isSupabaseConfigured && supabase) {
           try {
-            const [claimsRes, txRes, venuesRes, profilesRes, rulesRes] = await Promise.all([
-              supabase.from('audit_claims').select('*'),
-              supabase.from('transactions').select('*'),
+            const [
+              claimsRes,
+              txRes,
+              venuesRes,
+              profilesRes,
+              rulesRes,
+              treatsRes,
+              activitiesRes,
+            ] = await Promise.all([
+              supabase.from('audit_claims').select('*').order('created_at', { ascending: false }),
+              supabase.from('transactions').select('*').order('date', { ascending: false }),
               supabase.from('venues').select('*'),
               supabase.from('profiles').select('*'),
               supabase.from('contribution_rules').select('*'),
+              supabase.from('member_treat_events').select('*').order('date', { ascending: false }),
+              supabase.from('planned_activities').select('*').order('date', { ascending: false }),
             ]);
 
+            // 1. Transactions
+            const mappedTx: Transaction[] = (txRes.data || []).map((t) => ({
+              id: t.id,
+              date: t.date,
+              title: t.title,
+              description: t.description || '',
+              amount: Number(t.amount || 0),
+              type: t.type,
+              category: t.category,
+              loggedBy: 'TRF Custodian',
+              relatedMemberId: t.related_member_id || undefined,
+              createdAt: t.created_at,
+            }));
+            setTransactions(mappedTx);
+
+            // 2. Profiles / Members
+            let mappedProfiles: UserProfile[] = [];
             if (profilesRes.data && profilesRes.data.length > 0) {
-              const mappedProfiles: UserProfile[] = profilesRes.data.map((p) => ({
-                id: p.id,
-                name: p.name,
-                email: p.email,
-                role: p.role,
-                avatarUrl: p.avatar_url || `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100`,
-                department: p.department || 'Engineering',
-                designation: p.designation || 'Team Member',
-                joiningDate: p.joining_date || new Date().toISOString().split('T')[0],
-                birthDate: p.birth_date || '2000-01-01',
-                joiningFeeStatus: p.joining_fee_status || 'pending',
-                joiningFeeAmount: Number(p.joining_fee_amount || 1000),
-                phone: p.phone,
-                isActive: p.is_active ?? true,
-              }));
+              mappedProfiles = profilesRes.data.map((p) => {
+                // Reconcile joining fee status: if a joining fee transaction already exists for this member, it is paid!
+                const hasPaidTx = mappedTx.some(
+                  (tx) =>
+                    tx.category === 'joining_fee' &&
+                    (tx.relatedMemberId === p.id ||
+                      tx.title.toLowerCase().includes(p.name.toLowerCase()))
+                );
+
+                const finalJoiningStatus = hasPaidTx ? 'paid' : (p.joining_fee_status || 'pending');
+
+                // If DB was out of sync with funds transaction, update DB
+                if (supabase && p.joining_fee_status !== 'paid' && hasPaidTx) {
+                  supabase.from('profiles').update({ joining_fee_status: 'paid' }).eq('id', p.id).then();
+                }
+
+                return {
+                  id: p.id,
+                  name: p.name,
+                  email: p.email,
+                  role: p.role,
+                  avatarUrl: p.avatar_url || `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100`,
+                  department: p.department || 'Engineering',
+                  designation: p.designation || 'Team Member',
+                  joiningDate: p.joining_date || new Date().toISOString().split('T')[0],
+                  birthDate: p.birth_date || '2000-01-01',
+                  joiningFeeStatus: finalJoiningStatus as 'paid' | 'pending' | 'waived',
+                  joiningFeeAmount: Number(p.joining_fee_amount || 1000),
+                  phone: p.phone,
+                  isActive: p.is_active ?? true,
+                };
+              });
+
               setMembers(mappedProfiles);
+
+              // Auto-set current active user to first manager or first profile
+              setCurrentUserId((prevId) => {
+                if (mappedProfiles.some((m) => m.id === prevId)) return prevId;
+                const manager = mappedProfiles.find((m) => m.role === 'manager');
+                return manager ? manager.id : mappedProfiles[0].id;
+              });
             }
 
-            if (claimsRes.data && claimsRes.data.length > 0) {
+            // 3. Claims
+            if (claimsRes.data !== null) {
               const mappedClaims: AuditClaim[] = claimsRes.data.map((c) => ({
                 id: c.id,
                 monthYear: c.month_year,
                 headcount: c.headcount,
-                ratePerHead: c.rate_per_head,
-                totalAmount: c.headcount * c.rate_per_head,
+                ratePerHead: Number(c.rate_per_head || 1400),
+                totalAmount: Number(c.total_amount || c.headcount * (c.rate_per_head || 1400)),
                 status: c.status,
                 submissionDate: c.submission_date,
                 disbursedDate: c.disbursed_date,
@@ -260,22 +313,8 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
               setClaims(mappedClaims);
             }
 
-            if (txRes.data && txRes.data.length > 0) {
-              const mappedTx: Transaction[] = txRes.data.map((t) => ({
-                id: t.id,
-                date: t.date,
-                title: t.title,
-                description: t.description,
-                amount: Number(t.amount),
-                type: t.type,
-                category: t.category,
-                loggedBy: 'TRF Custodian',
-                createdAt: t.created_at,
-              }));
-              setTransactions(mappedTx);
-            }
-
-            if (venuesRes.data && venuesRes.data.length > 0) {
+            // 4. Venues
+            if (venuesRes.data !== null) {
               const mappedVenues: VenuePlace[] = venuesRes.data.map((v) => ({
                 id: v.id,
                 name: v.name,
@@ -291,7 +330,8 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
               setVenues(mappedVenues);
             }
 
-            if (rulesRes.data && rulesRes.data.length > 0) {
+            // 5. Contribution Rules
+            if (rulesRes.data !== null) {
               const mappedRules: ContributionRule[] = rulesRes.data.map((r) => ({
                 id: r.id,
                 title: r.title,
@@ -301,6 +341,44 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
                 isMandatory: Boolean(r.is_mandatory),
               }));
               setRules(mappedRules);
+            }
+
+            // 6. Member Treat Events
+            if (treatsRes.data !== null) {
+              const mappedTreats: MemberTreatEvent[] = treatsRes.data.map((t) => {
+                const matchedMember = mappedProfiles.find((m) => m.id === t.member_id);
+                return {
+                  id: t.id,
+                  memberId: t.member_id,
+                  memberName: matchedMember ? matchedMember.name : 'Team Member',
+                  ruleTitle: t.rule_title,
+                  details: t.details || '',
+                  amount: Number(t.amount || 0),
+                  date: t.date || new Date().toISOString().split('T')[0],
+                  status: t.status || 'pending',
+                  collectedDate: t.collected_date,
+                };
+              });
+              setTreatEvents(mappedTreats);
+            }
+
+            // 7. Planned Activities
+            if (activitiesRes.data !== null) {
+              const mappedActivities: PlannedActivity[] = activitiesRes.data.map((a) => ({
+                id: a.id,
+                title: a.title,
+                venueName: a.venue_name,
+                venueId: a.venue_id,
+                date: a.date,
+                time: a.time,
+                estimatedTotalBudget: Number(a.estimated_total_budget || 0),
+                trfContributionShare: Number(a.trf_contribution_share || 0),
+                personalContributionPerHead: Number(a.personal_contribution_per_head || 0),
+                status: a.status || 'voting',
+                rsvps: [],
+                description: a.description || '',
+              }));
+              setPlannedActivities(mappedActivities);
             }
 
             setIsSupabaseLive(true);
@@ -527,6 +605,25 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     };
     setTransactions((prev) => [newTx, ...prev]);
 
+    // If joining fee transaction is added, automatically mark the member as paid in state and Supabase profiles!
+    if (data.category === 'joining_fee') {
+      const targetMember = data.relatedMemberId
+        ? members.find((m) => m.id === data.relatedMemberId)
+        : members.find((m) => data.title.toLowerCase().includes(m.name.toLowerCase()));
+      if (targetMember) {
+        setMembers((prev) =>
+          prev.map((m) => (m.id === targetMember.id ? { ...m, joiningFeeStatus: 'paid' } : m))
+        );
+        if (isSupabaseConfigured && supabase) {
+          supabase
+            .from('profiles')
+            .update({ joining_fee_status: 'paid' })
+            .eq('id', targetMember.id)
+            .then();
+        }
+      }
+    }
+
     // Async push to Supabase
     if (isSupabaseConfigured && supabase) {
       supabase.from('transactions').insert([
@@ -537,6 +634,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
           type: data.type,
           category: data.category,
           date: data.date,
+          related_member_id: data.relatedMemberId || (members.find((m) => data.title.toLowerCase().includes(m.name.toLowerCase()))?.id || null),
         }
       ]).then(({ error }) => {
         if (error) console.log('Supabase sync note:', error.message);
@@ -806,16 +904,34 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       prev.map((m) => (m.id === memberId ? { ...m, joiningFeeStatus: status } : m))
     );
 
+    // Persist status change to Supabase profiles table
+    if (isSupabaseConfigured && supabase) {
+      supabase
+        .from('profiles')
+        .update({ joining_fee_status: status })
+        .eq('id', memberId)
+        .then(({ error }) => {
+          if (error) console.log('Supabase profile joining fee sync note:', error.message);
+        });
+    }
+
     if (status === 'paid' && member.joiningFeeStatus !== 'paid') {
-      addTransaction({
-        title: `${member.name} - Joining Fee Contribution`,
-        description: 'Mandatory initial TRF pool entry contribution',
-        amount: member.joiningFeeAmount || 1000,
-        type: 'inflow',
-        category: 'joining_fee',
-        date: new Date().toISOString().split('T')[0],
-        relatedMemberId: memberId,
-      });
+      const alreadyHasTx = transactions.some(
+        (t) =>
+          t.category === 'joining_fee' &&
+          (t.relatedMemberId === memberId || t.title.toLowerCase().includes(member.name.toLowerCase()))
+      );
+      if (!alreadyHasTx) {
+        addTransaction({
+          title: `${member.name} - Joining Fee Contribution`,
+          description: 'Mandatory initial TRF pool entry contribution',
+          amount: member.joiningFeeAmount || 1000,
+          type: 'inflow',
+          category: 'joining_fee',
+          date: new Date().toISOString().split('T')[0],
+          relatedMemberId: memberId,
+        });
+      }
 
       setTreatEvents((prev) =>
         prev.map((t) =>
@@ -851,6 +967,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     if (isSupabaseConfigured && supabase) {
       supabase.from('member_treat_events').insert([
         {
+          member_id: member.id,
           rule_title: data.ruleTitle,
           details: data.details,
           amount: data.amount,
@@ -868,13 +985,23 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     const treat = treatEvents.find((t) => t.id === treatId);
     if (!treat || treat.status === 'collected') return;
 
+    const collectedDate = new Date().toISOString().split('T')[0];
+
     setTreatEvents((prev) =>
       prev.map((t) =>
         t.id === treatId
-          ? { ...t, status: 'collected', collectedDate: new Date().toISOString().split('T')[0] }
+          ? { ...t, status: 'collected', collectedDate }
           : t
       )
     );
+
+    if (isSupabaseConfigured && supabase) {
+      supabase
+        .from('member_treat_events')
+        .update({ status: 'collected', collected_date: collectedDate })
+        .eq('id', treatId)
+        .then();
+    }
 
     addTransaction({
       title: `${treat.ruleTitle} - ${treat.memberName}`,
@@ -882,7 +1009,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       amount: treat.amount,
       type: 'inflow',
       category: treat.ruleTitle.includes('Joining') ? 'joining_fee' : 'treat_event',
-      date: new Date().toISOString().split('T')[0],
+      date: collectedDate,
       relatedMemberId: treat.memberId,
     });
 

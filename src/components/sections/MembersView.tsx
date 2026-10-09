@@ -26,6 +26,7 @@ interface MembersViewProps {
 export function MembersView({ onOpenAddMember }: MembersViewProps) {
   const {
     members,
+    transactions,
     currentUser,
     isManager,
     updateMemberJoiningFee,
@@ -157,8 +158,15 @@ export function MembersView({ onOpenAddMember }: MembersViewProps) {
                 </TableRow>
               ) : (
                 filteredMembers.map((member) => {
-                  const isPaid = member.joiningFeeStatus === 'paid';
-                  const isPending = member.joiningFeeStatus === 'pending';
+                  const hasJoiningTx = transactions.some(
+                    (t) =>
+                      t.category === 'joining_fee' &&
+                      (t.relatedMemberId === member.id ||
+                        t.title.toLowerCase().includes(member.name.toLowerCase()))
+                  );
+                  const effectiveJoiningStatus = hasJoiningTx ? 'paid' : member.joiningFeeStatus;
+                  const isPaid = effectiveJoiningStatus === 'paid';
+                  const isPending = effectiveJoiningStatus === 'pending';
                   const isCurrentUser = member.id === currentUser.id;
 
                   return (
@@ -241,29 +249,44 @@ export function MembersView({ onOpenAddMember }: MembersViewProps) {
                       {/* Joining Fee */}
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          {isPaid ? (
-                            <div className="flex items-center gap-1 text-xs text-zinc-900 dark:text-zinc-100 font-medium">
-                              <Check className="h-3.5 w-3.5 text-zinc-500" />
-                              <span>Paid</span>
-                            </div>
-                          ) : isPending ? (
-                            <Badge variant="outline" className="text-[10px] font-normal gap-1 border-dashed">
-                              <Clock className="h-3 w-3 text-zinc-400" />
-                              <span>Pending</span>
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-zinc-400">Waived</span>
-                          )}
-
-                          {isManager && isPending && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-6 px-2 text-[10px]"
-                              onClick={() => updateMemberJoiningFee(member.id, 'paid')}
+                          {isManager ? (
+                            <select
+                              value={effectiveJoiningStatus}
+                              onChange={(e) =>
+                                updateMemberJoiningFee(
+                                  member.id,
+                                  e.target.value as 'paid' | 'pending' | 'waived'
+                                )
+                              }
+                              className={`h-6 text-[11px] rounded border px-1.5 bg-transparent cursor-pointer ${
+                                isPaid
+                                  ? 'border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 font-semibold'
+                                  : isPending
+                                  ? 'border-dashed border-amber-400 dark:border-amber-600 text-amber-600 dark:text-amber-400 font-medium'
+                                  : 'border-zinc-200 dark:border-zinc-800 text-zinc-400'
+                              }`}
+                              title="Update member joining fee payment status"
                             >
-                              Mark Paid
-                            </Button>
+                              <option value="paid" className="bg-background text-foreground">Paid</option>
+                              <option value="pending" className="bg-background text-foreground">Pending</option>
+                              <option value="waived" className="bg-background text-foreground">Waived</option>
+                            </select>
+                          ) : (
+                            <div>
+                              {isPaid ? (
+                                <div className="flex items-center gap-1 text-xs text-zinc-900 dark:text-zinc-100 font-medium">
+                                  <Check className="h-3.5 w-3.5 text-zinc-500" />
+                                  <span>Paid</span>
+                                </div>
+                              ) : isPending ? (
+                                <Badge variant="outline" className="text-[10px] font-normal gap-1 border-dashed text-amber-600 dark:text-amber-400">
+                                  <Clock className="h-3 w-3" />
+                                  <span>Pending</span>
+                                </Badge>
+                              ) : (
+                                <span className="text-xs text-zinc-400">Waived</span>
+                              )}
+                            </div>
                           )}
                         </div>
                       </TableCell>
