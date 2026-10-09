@@ -52,6 +52,8 @@ export default function DashboardLayout({
     { href: '/dashboard/chat', label: 'Chat', icon: MessageSquare, badge: unreadDirectMessagesCount },
   ];
 
+  const isChatRoute = pathname === '/dashboard/chat' || pathname.startsWith('/dashboard/chat');
+
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
       {/* 1. Fixed Sidebar Navigation */}
@@ -63,7 +65,9 @@ export default function DashboardLayout({
 
       {/* 2. Main Content Container */}
       <div
-        className={`min-h-screen flex flex-col transition-all duration-300 ease-in-out ${
+        className={`${
+          isChatRoute ? 'h-dvh max-h-dvh overflow-hidden' : 'min-h-screen'
+        } flex flex-col transition-all duration-300 ease-in-out ${
           isSidebarCollapsed ? 'md:pl-16' : 'md:pl-60'
         }`}
       >
@@ -77,7 +81,13 @@ export default function DashboardLayout({
         />
 
         {/* Dynamic Route Children */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto pb-24 md:pb-12">
+        <main
+          className={
+            isChatRoute
+              ? "flex-1 min-h-0 flex flex-col p-2 sm:p-4 lg:p-5 w-full max-w-7xl mx-auto pb-[4rem] md:pb-4 overflow-hidden"
+              : "flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto pb-24 md:pb-12"
+          }
+        >
           {children}
         </main>
       </div>
