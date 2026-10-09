@@ -11,6 +11,9 @@ import {
   PlannedActivity,
   ClaimStatus,
   TransactionCategory,
+  InAppNotification,
+  NotificationType,
+  NotificationTargetTab,
 } from '@/types/trf';
 import {
   INITIAL_MEMBERS,
@@ -22,6 +25,7 @@ import {
   INITIAL_PLANNED_ACTIVITIES,
 } from '@/lib/mock-data';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { getBirthdayCountdown, formatPKR, formatDate } from '@/lib/utils';
 import confetti from 'canvas-confetti';
 
 interface TRFContextType {
@@ -35,6 +39,21 @@ interface TRFContextType {
   venues: VenuePlace[];
   plannedActivities: PlannedActivity[];
   isSupabaseLive: boolean;
+  
+  // In-App Notifications
+  notifications: InAppNotification[];
+  unreadNotificationsCount: number;
+  markNotificationAsRead: (id: string) => void;
+  markAllNotificationsAsRead: () => void;
+  deleteNotification: (id: string) => void;
+  clearAllNotifications: () => void;
+  addNotification: (data: {
+    title: string;
+    message: string;
+    type: NotificationType;
+    targetTab?: NotificationTargetTab;
+    actionLabel?: string;
+  }) => void;
   
   // Computed values
   currentBalance: number;
@@ -232,6 +251,17 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     return false;
   });
   const [isSupabaseLive, setIsSupabaseLive] = useState(isSupabaseConfigured);
+
+  const NOTIF_STORAGE_KEY = 'trf_notifications_v1';
+  const [notifications, setNotifications] = useState<InAppNotification[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(NOTIF_STORAGE_KEY);
+        if (saved) return JSON.parse(saved);
+      } catch {}
+    }
+    return [];
+  });
 
   // 1. Initial Load: LocalStorage & Supabase Hydration
   useEffect(() => {
@@ -529,6 +559,153 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
 
   const pendingMemberDuesAmount = pendingJoiningDues + pendingTreatDues;
   const activeHeadcount = members.filter((m) => m.isActive).length;
+
+  // Save notifications to localStorage
+  useEffect(() => {
+    if (!isLoaded) return;
+    try {
+      localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(notifications));
+    } catch (e) {
+      console.warn('Failed to save notifications to storage:', e);
+    }
+  }, [isLoaded, notifications]);
+
+  // Dynamic system notifications synchronization
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    setNotifications((prev) => {
+      const existingIds = new Set(prev.map((n) => n.id));
+      const newItems: InAppNotification[] = [];
+
+      // 1. Upcoming Birthdays (within next 7 days)
+      members.forEach((m) => {
+        if (!m.birthDate || !m.isActive) return;
+        const countdown = getBirthdayCountdown(m.birthDate);
+        if (countdown.daysLeft <= 7) {
+          const notifId = `notif-bday-${m.id}`;
+          if (!existingIds.has(notifId)) {
+            newItems.push({
+              id: notifId,
+              title: `Upcoming Birthday: ${m.name}`,
+              message: countdown.daysLeft === 0
+                ? `Today is ${m.name}'s birthday! Wish them a happy birthday.`
+                : `${m.name}'s birthday is in ${countdown.daysLeft} day${countdown.daysLeft === 1 ? '' : 's'}. Funded via TRF.`,
+              timestamp: new Date().toISOString(),
+              type: 'birthday',
+              isRead: false,
+              targetTab: 'birthdays',
+              actionLabel: 'View Birthday',
+            });
+            existingIds.add(notifId);
+          }
+        }
+      });
+
+      // 2. Pending Joining Fees
+      members.forEach((m) => {
+        if (m.joiningFeeStatus === 'pending' && m.isActive) {
+          const notifId = `notif-joining-${m.id}`;
+          if (!existingIds.has(notifId)) {
+            newItems.push({
+              id: notifId,
+              title: `Pending Joining Fee: ${m.name}`,
+              message: `${m.name} (${m.employeeId || 'ID Pending'}) has an outstanding initial entry contribution of ${formatPKR(m.joiningFeeAmount || 1000)}.`,
+              timestamp: new Date().toISOString(),
+              type: 'due',
+              isRead: false,
+              targetTab: 'members',
+              actionLabel: 'Collect Dues',
+            });
+            existingIds.add(notifId);
+          }
+        }
+      });
+
+      // 3. Pending Treat Declarations
+      treatEvents.forEach((t) => {
+        if (t.status === 'pending') {
+          const notifId = `notif-treat-${t.id}`;
+          if (!existingIds.has(notifId)) {
+            newItems.push({
+              id: notifId,
+              title: `Pending Treat Dues: ${t.memberName}`,
+              message: `${t.ruleTitle} - ${formatPKR(t.amount)} pending contribution to the pool.`,
+              timestamp: t.date ? new Date(t.date).toISOString() : new Date().toISOString(),
+              type: 'due',
+              isRead: false,
+              targetTab: 'rules-treats',
+              actionLabel: 'View Treats',
+            });
+            existingIds.add(notifId);
+          }
+        }
+      });
+
+      // 4. Submitted Audit Claims awaiting reimbursement
+      claims.forEach((c) => {
+        if (c.status === 'submitted') {
+          const notifId = `notif-claim-${c.id}`;
+          if (!existingIds.has(notifId)) {
+            newItems.push({
+              id: notifId,
+              title: `Audit Claim Submitted: ${c.monthYear}`,
+              message: `Monthly claim for ${formatPKR(c.totalAmount)} is submitted and awaiting company audit disbursement.`,
+              timestamp: new Date().toISOString(),
+              type: 'claim',
+              isRead: false,
+              targetTab: 'audit-claims',
+              actionLabel: 'Track Claim',
+            });
+            existingIds.add(notifId);
+          }
+        }
+      });
+
+      if (newItems.length === 0) return prev;
+      return [...newItems, ...prev];
+    });
+  }, [isLoaded, members, treatEvents, claims]);
+
+  const addNotification = (data: {
+    title: string;
+    message: string;
+    type: NotificationType;
+    targetTab?: NotificationTargetTab;
+    actionLabel?: string;
+  }) => {
+    const item: InAppNotification = {
+      id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      title: data.title,
+      message: data.message,
+      type: data.type,
+      isRead: false,
+      timestamp: new Date().toISOString(),
+      targetTab: data.targetTab,
+      actionLabel: data.actionLabel,
+    };
+    setNotifications((prev) => [item, ...prev]);
+  };
+
+  const markNotificationAsRead = (id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+    );
+  };
+
+  const markAllNotificationsAsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+  };
+
+  const deleteNotification = (id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
+
+  const clearAllNotifications = () => {
+    setNotifications([]);
+  };
+
+  const unreadNotificationsCount = notifications.filter((n) => !n.isRead).length;
 
   // Authentication Methods
   const login = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
@@ -1025,6 +1202,14 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    addNotification({
+      title: 'New Member Provisioned',
+      message: `${data.name} (${data.employeeId}) added as ${data.designation}.`,
+      type: 'system',
+      targetTab: 'members',
+      actionLabel: 'View Team',
+    });
+
     return { success: true };
   };
 
@@ -1144,6 +1329,14 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       category: treat.ruleTitle.includes('Joining') ? 'joining_fee' : 'treat_event',
       date: collectedDate,
       relatedMemberId: treat.memberId,
+    });
+
+    addNotification({
+      title: 'Contribution Collected',
+      message: `Collected ${formatPKR(treat.amount)} for ${treat.ruleTitle} from ${treat.memberName}.`,
+      type: 'due',
+      targetTab: 'ledger',
+      actionLabel: 'View Funds',
     });
 
     triggerCelebration();
@@ -1655,6 +1848,14 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    addNotification({
+      title: `Outing Settled: ${act.title}`,
+      message: `Bill of ${formatPKR(bill)} settled and deducted from TRF pool.${hasShortfall && data.splitShortfallWithMembers ? ` Remaining ${formatPKR(shortfall)} divided across active members (${formatPKR(perMemberShare || 0)}/head).` : ''}`,
+      type: 'outing',
+      targetTab: 'activities-venues',
+      actionLabel: 'View Outing',
+    });
+
     triggerCelebration();
 
     return {
@@ -1757,6 +1958,14 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         completePlannedActivity,
         deletePlannedActivity,
         updateRSVP,
+        // Notifications
+        notifications,
+        unreadNotificationsCount,
+        markNotificationAsRead,
+        markAllNotificationsAsRead,
+        deleteNotification,
+        clearAllNotifications,
+        addNotification,
         triggerCelebration,
         resetToDemoData,
       }}

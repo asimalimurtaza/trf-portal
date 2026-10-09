@@ -110,6 +110,7 @@ function DashboardContent() {
           onOpenNewTreat={() => setIsTreatModalOpen(true)}
           onOpenProfile={() => setIsProfileModalOpen(true)}
           onToggleSidebar={toggleSidebarCollapse}
+          onNavigateTab={handleTabChange}
         />
 
         {/* Dynamic Main Content Views */}

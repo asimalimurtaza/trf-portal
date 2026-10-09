@@ -1,20 +1,22 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { useTRF } from '@/context/TRFContext';
-import { useTheme } from '@/context/ThemeContext';
-import { formatPKR } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Plus, 
-  FileCheck2, 
-  Gift, 
+import React from "react";
+import { useTRF } from "@/context/TRFContext";
+import { useTheme } from "@/context/ThemeContext";
+import { formatPKR } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Plus,
+  FileCheck2,
+  Gift,
   ChevronDown,
   Sun,
   Moon,
-  Menu
-} from 'lucide-react';
+  Menu,
+} from "lucide-react";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { NavTab } from "./Sidebar";
 
 interface NavbarProps {
   onOpenNewTransaction: () => void;
@@ -22,6 +24,7 @@ interface NavbarProps {
   onOpenNewTreat: () => void;
   onOpenProfile: () => void;
   onToggleSidebar?: () => void;
+  onNavigateTab?: (tab: NavTab) => void;
 }
 
 export function Navbar({
@@ -30,13 +33,9 @@ export function Navbar({
   onOpenNewTreat,
   onOpenProfile,
   onToggleSidebar,
+  onNavigateTab,
 }: NavbarProps) {
-  const { 
-    currentUser, 
-    isManager, 
-    currentBalance,
-    logout
-  } = useTRF();
+  const { currentUser, isManager, currentBalance, logout } = useTRF();
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -56,7 +55,9 @@ export function Navbar({
           )}
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">Funds Pool:</span>
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              Funds Pool:
+            </span>
             <span className="text-sm font-bold font-mono tracking-tight text-zinc-900 dark:text-zinc-50">
               {formatPKR(currentBalance)}
             </span>
@@ -65,18 +66,25 @@ export function Navbar({
 
         {/* Right Actions & Account */}
         <div className="flex items-center gap-2">
+          {/* In-App Notifications Center */}
+          <NotificationBell onNavigateTab={onNavigateTab} />
+
           {/* Light/Dark Toggle */}
           <Button
             variant="ghost"
             size="icon"
             onClick={toggleTheme}
             className="text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
-            title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+            title={theme === "dark" ? "Light Mode" : "Dark Mode"}
           >
-            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
           </Button>
 
-          {/* Declare Treat (All Members) */}
+          {/* Declare Treat (All Members)
           <Button
             variant="outline"
             size="sm"
@@ -85,12 +93,12 @@ export function Navbar({
           >
             <Gift className="h-3.5 w-3.5" />
             <span>Treat</span>
-          </Button>
+          </Button> */}
 
           {/* Manager Action Buttons */}
           {isManager && (
             <>
-              <Button
+              {/* <Button
                 variant="outline"
                 size="sm"
                 onClick={onOpenNewClaim}
@@ -98,7 +106,7 @@ export function Navbar({
               >
                 <FileCheck2 className="h-3.5 w-3.5" />
                 <span>Claim</span>
-              </Button>
+              </Button> */}
               <Button
                 size="sm"
                 onClick={onOpenNewTransaction}
@@ -118,11 +126,14 @@ export function Navbar({
                   {currentUser.name}
                 </div>
                 <div className="text-[10px] text-zinc-500 mt-0.5">
-                  {isManager ? 'Manager' : 'Member'}
+                  {isManager ? "Manager" : "Member"}
                 </div>
               </div>
               <img
-                src={currentUser.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
+                src={
+                  currentUser.avatarUrl ||
+                  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100"
+                }
                 alt={currentUser.name}
                 className="h-6 w-6 rounded-full object-cover"
               />
@@ -133,11 +144,18 @@ export function Navbar({
             <div className="absolute right-0 mt-1 w-56 rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-1.5 shadow-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
               <div className="px-2 py-1 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-1.5 mb-1">
                 <div>
-                  <div className="text-xs font-semibold">{currentUser.name}</div>
-                  <div className="text-[10px] text-zinc-400 truncate max-w-[130px]">{currentUser.email}</div>
+                  <div className="text-xs font-semibold">
+                    {currentUser.name}
+                  </div>
+                  <div className="text-[10px] text-zinc-400 truncate max-w-[130px]">
+                    {currentUser.email}
+                  </div>
                 </div>
-                <Badge variant={isManager ? 'default' : 'secondary'} className="text-[9px] px-1 py-0 h-4">
-                  {isManager ? 'Admin' : 'Member'}
+                <Badge
+                  variant={isManager ? "default" : "secondary"}
+                  className="text-[9px] px-1 py-0 h-4"
+                >
+                  {isManager ? "Admin" : "Member"}
                 </Badge>
               </div>
 

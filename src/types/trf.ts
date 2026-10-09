@@ -128,3 +128,25 @@ export interface TRFOverviewStats {
   pendingClaimsAmount: number;
   pendingMemberDuesAmount: number;
 }
+
+export type NotificationType = 'due' | 'birthday' | 'outing' | 'claim' | 'system';
+
+export type NotificationTargetTab =
+  | 'overview'
+  | 'ledger'
+  | 'audit-claims'
+  | 'birthdays'
+  | 'activities-venues'
+  | 'rules-treats'
+  | 'members';
+
+export interface InAppNotification {
+  id: string;
+  title: string;
+  message: string;
+  timestamp: string; // ISO format
+  type: NotificationType;
+  isRead: boolean;
+  targetTab?: NotificationTargetTab;
+  actionLabel?: string;
+}
