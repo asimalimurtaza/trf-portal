@@ -1,13 +1,15 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useTRF } from '@/context/TRFContext';
 import { formatPKR, formatDate } from '@/lib/utils';
 import {
   Gift,
   Plus,
   CheckCircle2,
-  Clock
+  Clock,
+  Edit2,
+  Trash2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,6 +22,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { MemberTreatEvent } from '@/types/trf';
+import { EditTreatModal } from '@/components/modals/EditTreatModal';
 import { motion } from 'framer-motion';
 
 interface RulesTreatsViewProps {
@@ -27,7 +31,8 @@ interface RulesTreatsViewProps {
 }
 
 export function RulesTreatsView({ onOpenNewTreat }: RulesTreatsViewProps) {
-  const { rules, treatEvents, isManager, collectTreatPayment, pendingMemberDuesAmount } = useTRF();
+  const { rules, treatEvents, currentUser, isManager, collectTreatPayment, deleteTreatEvent, pendingMemberDuesAmount } = useTRF();
+  const [editingTreat, setEditingTreat] = useState<MemberTreatEvent | null>(null);
 
   return (
     <motion.div
@@ -108,79 +113,116 @@ export function RulesTreatsView({ onOpenNewTreat }: RulesTreatsViewProps) {
                 <TableHead>Amount</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Status</TableHead>
-                {isManager && <TableHead className="text-right">Collection</TableHead>}
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {treatEvents.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={isManager ? 6 : 5} className="h-24 text-center text-xs text-zinc-500">
-                    No treats declared yet.
+                  <TableCell colSpan={6} className="h-24 text-center text-xs text-zinc-500">
+                    No treats declared yet. Click "Declare Treat" above to add one.
                   </TableCell>
                 </TableRow>
               ) : (
-                treatEvents.map((treat) => (
-                  <TableRow key={treat.id}>
-                    <TableCell className="font-medium text-xs text-zinc-900 dark:text-zinc-100">
-                      {treat.memberName}
-                    </TableCell>
+                treatEvents.map((treat) => {
+                  const canEdit = isManager || treat.memberId === currentUser.id;
 
-                    <TableCell>
-                      <div className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
-                        {treat.ruleTitle}
-                      </div>
-                      {treat.details && (
-                        <div className="text-[11px] text-zinc-400 line-clamp-1">
-                          {treat.details}
+                  return (
+                    <TableRow key={treat.id}>
+                      <TableCell className="font-medium text-xs text-zinc-900 dark:text-zinc-100">
+                        {treat.memberName}
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
+                          {treat.ruleTitle}
                         </div>
-                      )}
-                    </TableCell>
-
-                    <TableCell className="font-mono font-medium text-xs text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
-                      +{formatPKR(treat.amount)}
-                    </TableCell>
-
-                    <TableCell className="text-xs text-zinc-500 whitespace-nowrap">
-                      {formatDate(treat.date)}
-                    </TableCell>
-
-                    <TableCell className="whitespace-nowrap">
-                      {treat.status === 'collected' ? (
-                        <Badge variant="secondary" className="text-[10px] gap-1">
-                          <CheckCircle2 className="h-3 w-3" />
-                          <span>Collected</span>
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-[10px] gap-1 border-dashed">
-                          <Clock className="h-3 w-3" />
-                          <span>Pending</span>
-                        </Badge>
-                      )}
-                    </TableCell>
-
-                    {isManager && (
-                      <TableCell className="text-right whitespace-nowrap">
-                        {treat.status === 'pending' ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs"
-                            onClick={() => collectTreatPayment(treat.id)}
-                          >
-                            Mark Collected
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-zinc-400">Received ✓</span>
+                        {treat.details && (
+                          <div className="text-[11px] text-zinc-400 line-clamp-1">
+                            {treat.details}
+                          </div>
                         )}
                       </TableCell>
-                    )}
-                  </TableRow>
-                ))
+
+                      <TableCell className="font-mono font-medium text-xs text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+                        +{formatPKR(treat.amount)}
+                      </TableCell>
+
+                      <TableCell className="text-xs text-zinc-500 whitespace-nowrap">
+                        {formatDate(treat.date)}
+                      </TableCell>
+
+                      <TableCell className="whitespace-nowrap">
+                        {treat.status === 'collected' ? (
+                          <Badge variant="secondary" className="text-[10px] gap-1">
+                            <CheckCircle2 className="h-3 w-3" />
+                            <span>Collected</span>
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] gap-1 border-dashed">
+                            <Clock className="h-3 w-3" />
+                            <span>Pending</span>
+                          </Badge>
+                        )}
+                      </TableCell>
+
+                      <TableCell className="text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {isManager && treat.status === 'pending' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => collectTreatPayment(treat.id)}
+                            >
+                              Collect
+                            </Button>
+                          )}
+
+                          {canEdit && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs gap-1"
+                              onClick={() => setEditingTreat(treat)}
+                            >
+                              <Edit2 className="h-3 w-3" />
+                              <span>Edit</span>
+                            </Button>
+                          )}
+
+                          {canEdit && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-zinc-400 hover:text-red-600"
+                              onClick={() => {
+                                if (confirm(`Delete treat declaration for "${treat.ruleTitle}"?`)) {
+                                  deleteTreatEvent(treat.id);
+                                }
+                              }}
+                              title="Delete Treat Request"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      {/* Edit Treat Dialog */}
+      <EditTreatModal
+        treat={editingTreat}
+        isOpen={Boolean(editingTreat)}
+        onClose={() => setEditingTreat(null)}
+      />
     </motion.div>
   );
 }

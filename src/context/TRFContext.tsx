@@ -77,6 +77,17 @@ interface TRFContextType {
     claimRefNumber?: string;
     auditNotes?: string;
   }) => void;
+  updateClaim: (
+    claimId: string,
+    data: {
+      monthYear?: string;
+      headcount?: number;
+      claimRefNumber?: string;
+      auditNotes?: string;
+      status?: ClaimStatus;
+    }
+  ) => void;
+  deleteClaim: (claimId: string) => void;
   updateClaimStatus: (claimId: string, status: ClaimStatus) => void;
   addMember: (data: {
     name: string;
@@ -96,6 +107,18 @@ interface TRFContextType {
     details: string;
     amount: number;
   }) => void;
+  updateTreatEvent: (
+    treatId: string,
+    data: {
+      memberId?: string;
+      ruleTitle?: string;
+      details?: string;
+      amount?: number;
+      status?: 'pending' | 'collected';
+      date?: string;
+    }
+  ) => void;
+  deleteTreatEvent: (treatId: string) => void;
   collectTreatPayment: (treatId: string) => void;
   addVenue: (data: {
     name: string;
@@ -561,6 +584,70 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateClaim = (
+    claimId: string,
+    data: {
+      monthYear?: string;
+      headcount?: number;
+      claimRefNumber?: string;
+      auditNotes?: string;
+      status?: ClaimStatus;
+    }
+  ) => {
+    if (!isManager) return;
+    setClaims((prev) =>
+      prev.map((c) => {
+        if (c.id === claimId) {
+          const newHeadcount = data.headcount !== undefined ? data.headcount : c.headcount;
+          const newStatus = data.status || c.status;
+          const updated: AuditClaim = {
+            ...c,
+            monthYear: data.monthYear || c.monthYear,
+            headcount: newHeadcount,
+            totalAmount: newHeadcount * c.ratePerHead,
+            claimRefNumber: data.claimRefNumber !== undefined ? data.claimRefNumber : c.claimRefNumber,
+            auditNotes: data.auditNotes !== undefined ? data.auditNotes : c.auditNotes,
+            status: newStatus,
+            disbursedDate: newStatus === 'approved_disbursed' ? (c.disbursedDate || new Date().toISOString().split('T')[0]) : c.disbursedDate,
+          };
+
+          if (newStatus === 'approved_disbursed' && c.status !== 'approved_disbursed') {
+            addTransaction({
+              title: `Company TRF Allowance - ${updated.monthYear}`,
+              description: `${updated.headcount} team heads @ 1,400 PKR disbursed via Audit`,
+              amount: updated.totalAmount,
+              type: 'inflow',
+              category: 'company_claim',
+              date: new Date().toISOString().split('T')[0],
+            });
+            triggerCelebration();
+          }
+
+          return updated;
+        }
+        return c;
+      })
+    );
+
+    if (isSupabaseConfigured && supabase) {
+      const payload: Record<string, any> = {};
+      if (data.monthYear) payload.month_year = data.monthYear;
+      if (data.headcount !== undefined) payload.headcount = data.headcount;
+      if (data.claimRefNumber !== undefined) payload.claim_ref_number = data.claimRefNumber;
+      if (data.auditNotes !== undefined) payload.audit_notes = data.auditNotes;
+      if (data.status) payload.status = data.status;
+      supabase.from('audit_claims').update(payload).eq('id', claimId).then();
+    }
+  };
+
+  const deleteClaim = (claimId: string) => {
+    if (!isManager) return;
+    setClaims((prev) => prev.filter((c) => c.id !== claimId));
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('audit_claims').delete().eq('id', claimId).then();
+    }
+  };
+
   const addMember = async (data: {
     name: string;
     email: string;
@@ -757,6 +844,70 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     triggerCelebration();
   };
 
+  const updateTreatEvent = (
+    treatId: string,
+    data: {
+      memberId?: string;
+      ruleTitle?: string;
+      details?: string;
+      amount?: number;
+      status?: 'pending' | 'collected';
+      date?: string;
+    }
+  ) => {
+    setTreatEvents((prev) =>
+      prev.map((t) => {
+        if (t.id === treatId) {
+          const targetMember = data.memberId ? members.find((m) => m.id === data.memberId) : null;
+          const updated: MemberTreatEvent = {
+            ...t,
+            memberId: data.memberId || t.memberId,
+            memberName: targetMember ? targetMember.name : t.memberName,
+            ruleTitle: data.ruleTitle || t.ruleTitle,
+            details: data.details !== undefined ? data.details : t.details,
+            amount: data.amount !== undefined ? data.amount : t.amount,
+            status: data.status || t.status,
+            date: data.date || t.date,
+            collectedDate: data.status === 'collected' ? (t.collectedDate || new Date().toISOString().split('T')[0]) : t.collectedDate,
+          };
+
+          if (data.status === 'collected' && t.status !== 'collected') {
+            addTransaction({
+              title: `${updated.ruleTitle} - ${updated.memberName}`,
+              description: updated.details,
+              amount: updated.amount,
+              type: 'inflow',
+              category: updated.ruleTitle.includes('Joining') ? 'joining_fee' : 'treat_event',
+              date: new Date().toISOString().split('T')[0],
+              relatedMemberId: updated.memberId,
+            });
+            triggerCelebration();
+          }
+
+          return updated;
+        }
+        return t;
+      })
+    );
+
+    if (isSupabaseConfigured && supabase) {
+      const payload: Record<string, any> = {};
+      if (data.ruleTitle) payload.rule_title = data.ruleTitle;
+      if (data.details !== undefined) payload.details = data.details;
+      if (data.amount !== undefined) payload.amount = data.amount;
+      if (data.status) payload.status = data.status;
+      if (data.date) payload.date = data.date;
+      supabase.from('member_treat_events').update(payload).eq('id', treatId).then();
+    }
+  };
+
+  const deleteTreatEvent = (treatId: string) => {
+    setTreatEvents((prev) => prev.filter((t) => t.id !== treatId));
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('member_treat_events').delete().eq('id', treatId).then();
+    }
+  };
+
   const addVenue = (data: {
     name: string;
     category: VenuePlace['category'];
@@ -901,10 +1052,14 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         addTransaction,
         deleteTransaction,
         createAuditClaim,
+        updateClaim,
+        deleteClaim,
         updateClaimStatus,
         addMember,
         updateMemberJoiningFee,
         logTreatEvent,
+        updateTreatEvent,
+        deleteTreatEvent,
         collectTreatPayment,
         addVenue,
         toggleVenueVote,

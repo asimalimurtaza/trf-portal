@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useTRF } from "@/context/TRFContext";
 import { useTheme } from "@/context/ThemeContext";
 import {
@@ -13,7 +13,6 @@ import {
   Users,
   Wallet,
   ChevronLeft,
-  ChevronRight,
   Sun,
   Moon,
 } from "lucide-react";
@@ -46,6 +45,10 @@ export function Sidebar({
 }: SidebarProps) {
   const { currentUser, isManager } = useTRF();
   const { theme, toggleTheme } = useTheme();
+  const [isHovered, setIsHovered] = useState(false);
+
+  // Expanded if manually uncollapsed (pinned) OR currently hovered by mouse
+  const isExpanded = !isCollapsed || isHovered;
 
   const navItems: {
     id: NavTab;
@@ -64,40 +67,48 @@ export function Sidebar({
   return (
     <motion.aside
       initial={false}
-      animate={{ width: isCollapsed ? 64 : 240 }}
-      transition={{ duration: 0.2, ease: "easeInOut" }}
-      className="fixed left-0 top-0 bottom-0 z-40 h-screen border-r flex flex-col justify-between hidden md:flex bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800"
+      animate={{ width: isExpanded ? 240 : 64 }}
+      transition={{ duration: 0.18, ease: "easeInOut" }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className={`fixed left-0 top-0 bottom-0 z-40 h-screen border-r flex flex-col justify-between hidden md:flex bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 transition-shadow ${
+        isHovered && isCollapsed ? "shadow-2xl ring-1 ring-black/5 dark:ring-white/10" : ""
+      }`}
     >
       {/* Top Header */}
       <div>
-        <div className="h-14 flex items-center justify-between px-3 border-b border-zinc-200 dark:border-zinc-800">
-          <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-zinc-900 text-zinc-50 dark:bg-zinc-50 dark:text-zinc-900">
-              <Wallet className="h-4 w-4" />
-            </div>
-            {!isCollapsed && (
-              <span className="font-semibold text-sm tracking-tight text-zinc-900 dark:text-zinc-50 truncate">
-                Vicenna-AlmusNet TRF
-              </span>
-            )}
-          </div>
+        <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center">
+          {isExpanded ? (
+            <div className="w-full flex items-center justify-between px-3.5">
+              <div className="flex items-center gap-2.5 overflow-hidden">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-zinc-900 text-zinc-50 dark:bg-zinc-50 dark:text-zinc-900 shadow-xs">
+                  <Wallet className="h-4 w-4" />
+                </div>
+                <span className="font-semibold text-xs tracking-tight text-zinc-900 dark:text-zinc-50 truncate">
+                  Vicenna-AlmusNet TRF
+                </span>
+              </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onToggleCollapse}
-            className="h-7 w-7 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50"
-            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {isCollapsed ? (
-              <ChevronRight className="h-3.5 w-3.5" />
-            ) : (
-              <ChevronLeft className="h-3.5 w-3.5" />
-            )}
-          </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onToggleCollapse}
+                className="h-7 w-7 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 shrink-0"
+                title={isCollapsed ? "Lock / pin sidebar open" : "Collapse sidebar"}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ) : (
+            <div className="w-full flex items-center justify-center">
+              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-zinc-900 text-zinc-50 dark:bg-zinc-50 dark:text-zinc-900 shadow-xs">
+                <Wallet className="h-4 w-4" />
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Navigation */}
+        {/* Navigation Links */}
         <nav className="p-2 space-y-0.5">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -106,9 +117,9 @@ export function Sidebar({
               <button
                 key={item.id}
                 onClick={() => onTabChange(item.id)}
-                title={isCollapsed ? item.label : undefined}
+                title={!isExpanded ? item.label : undefined}
                 className={`w-full flex items-center gap-3 rounded-md px-2.5 py-2 text-xs font-medium transition-colors cursor-pointer ${
-                  isCollapsed ? "justify-center px-0" : ""
+                  !isExpanded ? "justify-center px-0" : ""
                 } ${
                   isActive
                     ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 font-semibold"
@@ -116,9 +127,11 @@ export function Sidebar({
                 }`}
               >
                 <Icon
-                  className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-zinc-900 dark:text-zinc-50" : "text-zinc-500"}`}
+                  className={`h-4 w-4 shrink-0 ${
+                    isActive ? "text-zinc-900 dark:text-zinc-50" : "text-zinc-500"
+                  }`}
                 />
-                {!isCollapsed && <span className="truncate">{item.label}</span>}
+                {isExpanded && <span className="truncate">{item.label}</span>}
               </button>
             );
           })}
@@ -132,15 +145,17 @@ export function Sidebar({
           variant="ghost"
           size="sm"
           onClick={toggleTheme}
-          className={`w-full justify-start text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-50 ${isCollapsed ? "justify-center px-0" : ""}`}
+          className={`w-full justify-start text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-50 ${
+            !isExpanded ? "justify-center px-0" : ""
+          }`}
           title={theme === "dark" ? "Light Mode" : "Dark Mode"}
         >
           {theme === "dark" ? (
-            <Sun className="h-3.5 w-3.5 flex-shrink-0" />
+            <Sun className="h-3.5 w-3.5 shrink-0" />
           ) : (
-            <Moon className="h-3.5 w-3.5 flex-shrink-0" />
+            <Moon className="h-3.5 w-3.5 shrink-0" />
           )}
-          {!isCollapsed && (
+          {isExpanded && (
             <span className="ml-2 text-xs">
               {theme === "dark" ? "Light" : "Dark"}
             </span>
@@ -150,7 +165,9 @@ export function Sidebar({
         {/* User profile */}
         <button
           onClick={onOpenProfile}
-          className={`w-full flex items-center gap-2 p-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer text-left ${isCollapsed ? "justify-center p-1" : ""}`}
+          className={`w-full flex items-center gap-2 p-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer text-left ${
+            !isExpanded ? "justify-center p-1" : ""
+          }`}
           title="Click to view & edit profile"
         >
           <img
@@ -159,9 +176,9 @@ export function Sidebar({
               "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100"
             }
             alt={currentUser.name}
-            className="h-6 w-6 rounded-full object-cover flex-shrink-0"
+            className="h-6 w-6 rounded-full object-cover shrink-0"
           />
-          {!isCollapsed && (
+          {isExpanded && (
             <div className="min-w-0">
               <div className="text-xs font-medium text-zinc-900 dark:text-zinc-100 truncate">
                 {currentUser.name}
