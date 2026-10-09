@@ -80,7 +80,7 @@ export function SystemRatesModal({ isOpen, onClose }: SystemRatesModalProps) {
               <Input
                 id="monthly-rate"
                 type="number"
-                step="50"
+                step="any"
                 min="0"
                 value={monthlyRate}
                 onChange={(e) => setMonthlyRate(e.target.value)}
@@ -112,7 +112,7 @@ export function SystemRatesModal({ isOpen, onClose }: SystemRatesModalProps) {
               <Input
                 id="joining-fee"
                 type="number"
-                step="100"
+                step="any"
                 min="0"
                 value={joiningFee}
                 onChange={(e) => setJoiningFee(e.target.value)}

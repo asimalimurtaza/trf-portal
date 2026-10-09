@@ -119,8 +119,8 @@ export function AddTreatModal({ isOpen, onClose }: AddTreatModalProps) {
               id="treat-amount"
               type="number"
               required
-              min="100"
-              step="100"
+              min="0"
+              step="any"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />

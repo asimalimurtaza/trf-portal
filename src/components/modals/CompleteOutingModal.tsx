@@ -82,7 +82,7 @@ export function CompleteOutingModal({ activity, isOpen, onClose }: CompleteOutin
               id="outing-bill-input"
               type="number"
               min="1"
-              step="100"
+              step="any"
               required
               value={billAmount}
               onChange={(e) => setBillAmount(e.target.value)}

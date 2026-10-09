@@ -122,8 +122,8 @@ export function EditVenueModal({ venue, isOpen, onClose }: EditVenueModalProps) 
                 id="edit-venue-cost"
                 type="number"
                 required
-                min="100"
-                step="50"
+                min="0"
+                step="any"
                 value={estimatedCostPerHead}
                 onChange={(e) => setEstimatedCostPerHead(e.target.value)}
               />
@@ -163,7 +163,7 @@ export function EditVenueModal({ venue, isOpen, onClose }: EditVenueModalProps) 
                 type="number"
                 min="1"
                 max="5"
-                step="0.1"
+                step="any"
                 value={rating}
                 onChange={(e) => setRating(e.target.value)}
               />

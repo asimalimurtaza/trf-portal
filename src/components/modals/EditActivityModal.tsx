@@ -215,7 +215,7 @@ export function EditActivityModal({ activity, isOpen, onClose }: EditActivityMod
                 id="edit-act-total"
                 type="number"
                 min="0"
-                step="500"
+                step="any"
                 value={estimatedTotalBudget}
                 onChange={(e) => setEstimatedTotalBudget(e.target.value)}
               />
@@ -226,7 +226,7 @@ export function EditActivityModal({ activity, isOpen, onClose }: EditActivityMod
                 id="edit-act-trf"
                 type="number"
                 min="0"
-                step="500"
+                step="any"
                 value={trfContributionShare}
                 onChange={(e) => setTrfContributionShare(e.target.value)}
               />

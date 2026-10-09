@@ -146,7 +146,7 @@ export function AddEditRuleModal({
             <Input
               id="rule-amount"
               type="number"
-              step="100"
+              step="any"
               min="0"
               value={suggestedAmount}
               onChange={(e) => setSuggestedAmount(e.target.value)}

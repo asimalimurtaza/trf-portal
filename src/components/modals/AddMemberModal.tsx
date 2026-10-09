@@ -219,6 +219,8 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
               <Input
                 id="mem-fee"
                 type="number"
+                min="0"
+                step="any"
                 value={joiningFeeAmount}
                 onChange={(e) => setJoiningFeeAmount(e.target.value)}
               />

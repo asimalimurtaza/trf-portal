@@ -470,6 +470,8 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
                 <Input
                   id="act-bill"
                   type="number"
+                  min="0"
+                  step="any"
                   value={actTotalBudget}
                   onChange={(e) => setActTotalBudget(e.target.value)}
                 />
@@ -479,6 +481,8 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
                 <Input
                   id="act-trf"
                   type="number"
+                  min="0"
+                  step="any"
                   value={actTrfShare}
                   onChange={(e) => setActTrfShare(e.target.value)}
                 />

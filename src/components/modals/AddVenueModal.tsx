@@ -91,8 +91,8 @@ export function AddVenueModal({ isOpen, onClose }: AddVenueModalProps) {
                 id="venue-cost"
                 type="number"
                 required
-                min="200"
-                step="100"
+                min="0"
+                step="any"
                 value={estimatedCostPerHead}
                 onChange={(e) => setEstimatedCostPerHead(e.target.value)}
               />
