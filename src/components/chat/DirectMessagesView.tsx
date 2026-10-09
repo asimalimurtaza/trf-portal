@@ -1,28 +1,28 @@
-'use client';
+"use client";
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { useTRF } from '@/context/TRFContext';
-import { DirectMessage } from '@/types/trf';
-import { 
-  Search, 
-  Send, 
-  MessageSquare, 
-  Check, 
-  CheckCheck, 
-  ArrowLeft
-} from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import { useTRF } from "@/context/TRFContext";
+import { DirectMessage } from "@/types/trf";
+import {
+  Search,
+  Send,
+  MessageSquare,
+  Check,
+  CheckCheck,
+  ArrowLeft,
+} from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 
 function formatChatTime(dateString: string): string {
   try {
     const date = new Date(dateString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   } catch {
-    return '';
+    return "";
   }
 }
 
@@ -42,20 +42,24 @@ function formatChatDate(dateString: string): string {
       date.getMonth() === yesterday.getMonth() &&
       date.getFullYear() === yesterday.getFullYear();
 
-    if (isToday) return 'Today';
-    if (isYesterday) return 'Yesterday';
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    if (isToday) return "Today";
+    if (isYesterday) return "Yesterday";
+    return date.toLocaleDateString([], {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   } catch {
-    return 'Recent';
+    return "Recent";
   }
 }
 
 const QUICK_PROMPTS = [
-  '👍 Sounds good!',
-  '🎉 Congratulations!',
-  '☕ Coffee break at the cafe?',
-  '🍕 When is the next team treat?',
-  '💸 Just settled my dues in TRF funds.',
+  "👍 Sounds good!",
+  "🎉 Congratulations!",
+  "☕ Coffee break at the cafe?",
+  "🍕 When is the next team treat?",
+  "💸 Just settled my dues in TRF funds.",
 ];
 
 export function DirectMessagesView() {
@@ -70,11 +74,11 @@ export function DirectMessagesView() {
     isSupabaseLive,
   } = useTRF();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterTab, setFilterTab] = useState<'all' | 'unread'>('all');
-  const [inputText, setInputText] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterTab, setFilterTab] = useState<"all" | "unread">("all");
+  const [inputText, setInputText] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
+  const [mobileView, setMobileView] = useState<"list" | "chat">("list");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Other active team members (excluding currentUser)
@@ -89,11 +93,14 @@ export function DirectMessagesView() {
     }
     // Find teammate with most recent message
     const relevantMsgs = directMessages.filter(
-      (m) => m.senderId === currentUser.id || m.receiverId === currentUser.id
+      (m) => m.senderId === currentUser.id || m.receiverId === currentUser.id,
     );
     if (relevantMsgs.length > 0) {
       const lastMsg = relevantMsgs[relevantMsgs.length - 1];
-      const partnerId = lastMsg.senderId === currentUser.id ? lastMsg.receiverId : lastMsg.senderId;
+      const partnerId =
+        lastMsg.senderId === currentUser.id
+          ? lastMsg.receiverId
+          : lastMsg.senderId;
       return teammates.find((m) => m.id === partnerId) || teammates[0] || null;
     }
     return teammates[0] || null;
@@ -102,13 +109,13 @@ export function DirectMessagesView() {
   // When activeChatUserId is set explicitly, switch to chat view on mobile
   useEffect(() => {
     if (activeChatUserId) {
-      setMobileView('chat');
+      setMobileView("chat");
     }
   }, [activeChatUserId]);
 
   const handleSelectTeammate = (memberId: string) => {
     setActiveChatUserId(memberId);
-    setMobileView('chat');
+    setMobileView("chat");
   };
 
   // Mark messages as read when active partner is opened
@@ -124,15 +131,19 @@ export function DirectMessagesView() {
     return directMessages
       .filter(
         (m) =>
-          (m.senderId === currentUser.id && m.receiverId === activePartner.id) ||
-          (m.senderId === activePartner.id && m.receiverId === currentUser.id)
+          (m.senderId === currentUser.id &&
+            m.receiverId === activePartner.id) ||
+          (m.senderId === activePartner.id && m.receiverId === currentUser.id),
       )
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      .sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
   }, [directMessages, currentUser.id, activePartner?.id]);
 
   // Scroll to bottom on conversation change or new message
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activePartner?.id, conversationMessages.length]);
 
   // Group messages by day
@@ -157,10 +168,12 @@ export function DirectMessagesView() {
         const msgs = directMessages.filter(
           (m) =>
             (m.senderId === currentUser.id && m.receiverId === t.id) ||
-            (m.senderId === t.id && m.receiverId === currentUser.id)
+            (m.senderId === t.id && m.receiverId === currentUser.id),
         );
         const lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : null;
-        const unreadCount = msgs.filter((m) => m.senderId === t.id && !m.isRead).length;
+        const unreadCount = msgs.filter(
+          (m) => m.senderId === t.id && !m.isRead,
+        ).length;
 
         return {
           member: t,
@@ -170,19 +183,21 @@ export function DirectMessagesView() {
         };
       })
       .filter((item) => {
-        if (filterTab === 'unread' && item.unreadCount === 0) return false;
+        if (filterTab === "unread" && item.unreadCount === 0) return false;
         if (!searchQuery.trim()) return true;
         const q = searchQuery.toLowerCase();
         return (
           item.member.name.toLowerCase().includes(q) ||
           item.member.email.toLowerCase().includes(q) ||
-          (item.member.employeeId && item.member.employeeId.toLowerCase().includes(q)) ||
+          (item.member.employeeId &&
+            item.member.employeeId.toLowerCase().includes(q)) ||
           item.member.designation.toLowerCase().includes(q)
         );
       })
       .sort((a, b) => {
         // Unread first, then by last activity
-        if (b.unreadCount !== a.unreadCount) return b.unreadCount - a.unreadCount;
+        if (b.unreadCount !== a.unreadCount)
+          return b.unreadCount - a.unreadCount;
         return b.lastActivityTime - a.lastActivityTime;
       });
   }, [teammates, directMessages, currentUser.id, filterTab, searchQuery]);
@@ -192,7 +207,7 @@ export function DirectMessagesView() {
     if (!inputText.trim() || !activePartner || isSending) return;
 
     const textToSend = inputText.trim();
-    setInputText('');
+    setInputText("");
     setIsSending(true);
 
     try {
@@ -203,14 +218,16 @@ export function DirectMessagesView() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
 
   const totalUnreadAll = useMemo(() => {
-    return directMessages.filter((m) => m.receiverId === currentUser.id && !m.isRead).length;
+    return directMessages.filter(
+      (m) => m.receiverId === currentUser.id && !m.isRead,
+    ).length;
   }, [directMessages, currentUser.id]);
 
   return (
@@ -221,15 +238,15 @@ export function DirectMessagesView() {
           <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
             <span>Direct Messages</span>
             {isSupabaseLive && (
-              <Badge variant="outline" className="text-[10px] font-mono border-emerald-500/40 text-emerald-600 dark:text-emerald-400 gap-1 bg-emerald-50/50 dark:bg-emerald-950/20">
+              <Badge
+                variant="outline"
+                className="text-[10px] font-mono border-emerald-500/40 text-emerald-600 dark:text-emerald-400 gap-1 bg-emerald-50/50 dark:bg-emerald-950/20"
+              >
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Live
               </Badge>
             )}
           </h2>
-          <p className="hidden sm:block text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-            Private 1-on-1 team chats with colleagues • Real-time Supabase sync
-          </p>
         </div>
       </div>
 
@@ -238,7 +255,7 @@ export function DirectMessagesView() {
         {/* LEFT COLUMN: Teammates & Conversations List */}
         <div
           className={`w-full md:w-80 lg:w-96 flex flex-col border-b md:border-b-0 md:border-r border-zinc-200 dark:border-zinc-800 shrink-0 bg-zinc-50/50 dark:bg-zinc-900/30 ${
-            mobileView === 'chat' ? 'hidden md:flex' : 'flex'
+            mobileView === "chat" ? "hidden md:flex" : "flex"
           }`}
         >
           {/* Search & Filter Header */}
@@ -257,21 +274,21 @@ export function DirectMessagesView() {
             {/* Tabs */}
             <div className="flex items-center gap-1.5 text-xs">
               <button
-                onClick={() => setFilterTab('all')}
+                onClick={() => setFilterTab("all")}
                 className={`flex-1 py-1 px-2 rounded-md text-[11px] font-medium transition-colors text-center cursor-pointer ${
-                  filterTab === 'all'
-                    ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-2xs'
-                    : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200/50 dark:hover:bg-zinc-800'
+                  filterTab === "all"
+                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-2xs"
+                    : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200/50 dark:hover:bg-zinc-800"
                 }`}
               >
                 All ({teammates.length})
               </button>
               <button
-                onClick={() => setFilterTab('unread')}
+                onClick={() => setFilterTab("unread")}
                 className={`flex-1 py-1 px-2 rounded-md text-[11px] font-medium transition-colors text-center cursor-pointer ${
-                  filterTab === 'unread'
-                    ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-2xs'
-                    : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200/50 dark:hover:bg-zinc-800'
+                  filterTab === "unread"
+                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-2xs"
+                    : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200/50 dark:hover:bg-zinc-800"
                 }`}
               >
                 Unread ({totalUnreadAll})
@@ -284,8 +301,12 @@ export function DirectMessagesView() {
             {teammatesWithMeta.length === 0 ? (
               <div className="p-8 text-center text-zinc-500 text-xs">
                 <MessageSquare className="h-6 w-6 mx-auto mb-2 opacity-30" />
-                <p className="font-medium text-zinc-700 dark:text-zinc-300">No teammates found</p>
-                <p className="text-[11px] text-zinc-400 mt-0.5">Try clearing your search query.</p>
+                <p className="font-medium text-zinc-700 dark:text-zinc-300">
+                  No teammates found
+                </p>
+                <p className="text-[11px] text-zinc-400 mt-0.5">
+                  Try clearing your search query.
+                </p>
               </div>
             ) : (
               teammatesWithMeta.map(({ member, lastMsg, unreadCount }) => {
@@ -296,8 +317,8 @@ export function DirectMessagesView() {
                     onClick={() => handleSelectTeammate(member.id)}
                     className={`w-full text-left p-3 flex items-start gap-3 transition-colors cursor-pointer relative ${
                       isSelected
-                        ? 'bg-zinc-200/60 dark:bg-zinc-800/80'
-                        : 'hover:bg-zinc-100/60 dark:hover:bg-zinc-900/50'
+                        ? "bg-zinc-200/60 dark:bg-zinc-800/80"
+                        : "hover:bg-zinc-100/60 dark:hover:bg-zinc-900/50"
                     }`}
                   >
                     {/* Active indicator bar */}
@@ -323,8 +344,11 @@ export function DirectMessagesView() {
                           <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
                             {member.name}
                           </span>
-                          {member.role === 'manager' && (
-                            <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 border-zinc-300 dark:border-zinc-700">
+                          {member.role === "manager" && (
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] px-1 py-0 h-3.5 border-zinc-300 dark:border-zinc-700"
+                            >
                               Admin
                             </Badge>
                           )}
@@ -346,7 +370,9 @@ export function DirectMessagesView() {
                               {lastMsg.content}
                             </span>
                           ) : (
-                            <span className="text-zinc-400 italic">No messages yet</span>
+                            <span className="text-zinc-400 italic">
+                              No messages yet
+                            </span>
                           )}
                         </p>
                         {unreadCount > 0 && (
@@ -366,7 +392,7 @@ export function DirectMessagesView() {
         {/* RIGHT COLUMN: Active Conversation Window */}
         <div
           className={`flex-1 flex flex-col min-h-0 h-full bg-white dark:bg-zinc-950 ${
-            mobileView === 'list' ? 'hidden md:flex' : 'flex'
+            mobileView === "list" ? "hidden md:flex" : "flex"
           }`}
         >
           {activePartner ? (
@@ -378,7 +404,7 @@ export function DirectMessagesView() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setMobileView('list')}
+                    onClick={() => setMobileView("list")}
                     className="md:hidden -ml-1 mr-1 h-8 px-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 shrink-0"
                   >
                     <ArrowLeft className="h-4 w-4 mr-1" />
@@ -387,7 +413,10 @@ export function DirectMessagesView() {
 
                   <div className="relative shrink-0">
                     <Avatar className="h-8 w-8 sm:h-9 sm:w-9 border border-zinc-200 dark:border-zinc-800">
-                      <AvatarImage src={activePartner.avatarUrl} alt={activePartner.name} />
+                      <AvatarImage
+                        src={activePartner.avatarUrl}
+                        alt={activePartner.name}
+                      />
                       <AvatarFallback className="text-xs font-semibold">
                         {activePartner.name.charAt(0)}
                       </AvatarFallback>
@@ -406,10 +435,14 @@ export function DirectMessagesView() {
                         </span>
                       )}
                       <Badge
-                        variant={activePartner.role === 'manager' ? 'default' : 'secondary'}
+                        variant={
+                          activePartner.role === "manager"
+                            ? "default"
+                            : "secondary"
+                        }
                         className="text-[9px] px-1 py-0 h-4 shrink-0"
                       >
-                        {activePartner.role === 'manager' ? 'Admin' : 'Member'}
+                        {activePartner.role === "manager" ? "Admin" : "Member"}
                       </Badge>
                     </div>
                     <p className="text-[10px] sm:text-[11px] text-zinc-400 truncate">
@@ -439,7 +472,8 @@ export function DirectMessagesView() {
                         Start your conversation with {activePartner.name}
                       </p>
                       <p className="text-[11px] text-zinc-400 mt-0.5 max-w-xs mx-auto">
-                        Send a message to coordinate team outings, discuss treat events, or check TRF pool contributions.
+                        Send a message to coordinate team outings, discuss treat
+                        events, or check TRF pool contributions.
                       </p>
                     </div>
 
@@ -448,7 +482,9 @@ export function DirectMessagesView() {
                       {QUICK_PROMPTS.map((prompt, idx) => (
                         <button
                           key={idx}
-                          onClick={() => sendDirectMessage(activePartner.id, prompt)}
+                          onClick={() =>
+                            sendDirectMessage(activePartner.id, prompt)
+                          }
                           className="text-[11px] px-2.5 py-1 rounded-full border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                         >
                           {prompt}
@@ -473,11 +509,14 @@ export function DirectMessagesView() {
                         return (
                           <div
                             key={msg.id}
-                            className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}
+                            className={`flex items-end gap-2 ${isMe ? "justify-end" : "justify-start"}`}
                           >
                             {!isMe && (
                               <Avatar className="h-6 w-6 shrink-0 mb-1">
-                                <AvatarImage src={activePartner.avatarUrl} alt={activePartner.name} />
+                                <AvatarImage
+                                  src={activePartner.avatarUrl}
+                                  alt={activePartner.name}
+                                />
                                 <AvatarFallback className="text-[10px]">
                                   {activePartner.name.charAt(0)}
                                 </AvatarFallback>
@@ -487,8 +526,8 @@ export function DirectMessagesView() {
                             <div
                               className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-3.5 py-2 shadow-2xs ${
                                 isMe
-                                  ? 'bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900 rounded-br-xs'
-                                  : 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800/80 dark:text-zinc-100 rounded-bl-xs border border-zinc-200/50 dark:border-zinc-700/50'
+                                  ? "bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900 rounded-br-xs"
+                                  : "bg-zinc-100 text-zinc-900 dark:bg-zinc-800/80 dark:text-zinc-100 rounded-bl-xs border border-zinc-200/50 dark:border-zinc-700/50"
                               }`}
                             >
                               <p className="text-xs leading-relaxed whitespace-pre-wrap break-words">
@@ -497,8 +536,8 @@ export function DirectMessagesView() {
                               <div
                                 className={`flex items-center justify-end gap-1 mt-1 text-[9px] ${
                                   isMe
-                                    ? 'text-zinc-400 dark:text-zinc-500'
-                                    : 'text-zinc-400 dark:text-zinc-500'
+                                    ? "text-zinc-400 dark:text-zinc-500"
+                                    : "text-zinc-400 dark:text-zinc-500"
                                 }`}
                               >
                                 <span>{formatChatTime(msg.createdAt)}</span>
@@ -539,7 +578,10 @@ export function DirectMessagesView() {
                 </div>
 
                 {/* Message Input Box */}
-                <form onSubmit={handleSendMessage} className="flex items-end gap-2">
+                <form
+                  onSubmit={handleSendMessage}
+                  className="flex items-end gap-2"
+                >
                   <div className="relative flex-1">
                     <textarea
                       value={inputText}
@@ -570,7 +612,8 @@ export function DirectMessagesView() {
                 Select a Teammate
               </h3>
               <p className="text-xs text-zinc-400 mt-1 max-w-sm">
-                Choose a colleague from the list on the left to start or continue your 1-on-1 direct message conversation.
+                Choose a colleague from the list on the left to start or
+                continue your 1-on-1 direct message conversation.
               </p>
             </div>
           )}

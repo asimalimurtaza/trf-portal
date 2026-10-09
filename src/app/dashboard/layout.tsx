@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTRF } from '@/context/TRFContext';
@@ -33,8 +33,11 @@ export default function DashboardLayout({
     openProfileModal,
   } = useModals();
 
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const toggleSidebarCollapse = () => setIsSidebarCollapsed((prev) => !prev);
+  const [isSidebarHovered, setIsSidebarHovered] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  const openMobileSidebar = () => setIsMobileOpen(true);
+  const closeMobileSidebar = () => setIsMobileOpen(false);
 
   // Authentication gate
   if (!isAuthenticated) {
@@ -56,19 +59,21 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
-      {/* 1. Fixed Sidebar Navigation */}
+      {/* 1. Sidebar Navigation (Desktop Hover-to-Open + Mobile Slide-Over Drawer) */}
       <Sidebar
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={toggleSidebarCollapse}
+        isHovered={isSidebarHovered}
+        onHoverChange={setIsSidebarHovered}
         onOpenProfile={openProfileModal}
+        isMobileOpen={isMobileOpen}
+        onCloseMobile={closeMobileSidebar}
       />
 
-      {/* 2. Main Content Container */}
+      {/* 2. Main Content Container (Dynamically shifts and resizes alongside sidebar hover!) */}
       <div
         className={`${
           isChatRoute ? 'h-dvh max-h-dvh overflow-hidden' : 'min-h-screen'
-        } flex flex-col transition-all duration-300 ease-in-out ${
-          isSidebarCollapsed ? 'md:pl-16' : 'md:pl-60'
+        } flex flex-col transition-[padding-left] duration-300 ease-in-out ${
+          isSidebarHovered ? 'md:pl-64' : 'md:pl-[68px]'
         }`}
       >
         {/* Top Navbar */}
@@ -77,7 +82,7 @@ export default function DashboardLayout({
           onOpenNewClaim={openNewClaimModal}
           onOpenNewTreat={openNewTreatModal}
           onOpenProfile={openProfileModal}
-          onToggleSidebar={toggleSidebarCollapse}
+          onOpenMobileSidebar={openMobileSidebar}
         />
 
         {/* Dynamic Route Children */}

@@ -16,6 +16,8 @@ import {
   Moon,
   Menu,
   MessageSquare,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { NavTab } from "./Sidebar";
@@ -25,7 +27,7 @@ interface NavbarProps {
   onOpenNewClaim: () => void;
   onOpenNewTreat: () => void;
   onOpenProfile: () => void;
-  onToggleSidebar?: () => void;
+  onOpenMobileSidebar?: () => void;
   onNavigateTab?: (tab: NavTab) => void;
 }
 
@@ -34,7 +36,7 @@ export function Navbar({
   onOpenNewClaim,
   onOpenNewTreat,
   onOpenProfile,
-  onToggleSidebar,
+  onOpenMobileSidebar,
   onNavigateTab,
 }: NavbarProps) {
   const router = useRouter();
@@ -44,14 +46,17 @@ export function Navbar({
   return (
     <header className="sticky top-0 z-30 w-full border-b border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md">
       <div className="flex h-14 items-center justify-between px-4 sm:px-6">
-        {/* Left Mobile Menu Toggle & Pool Balance */}
-        <div className="flex items-center gap-3">
-          {onToggleSidebar && (
+        {/* Left Side: Mobile Hamburger & Pool Balance */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Mobile Menu Hamburger (Opens Mobile Drawer) */}
+          {onOpenMobileSidebar && (
             <Button
               variant="ghost"
               size="icon"
-              onClick={onToggleSidebar}
-              className="md:hidden"
+              onClick={onOpenMobileSidebar}
+              className="md:hidden text-zinc-600 dark:text-zinc-400 h-8 w-8"
+              title="Open menu"
+              aria-label="Open menu"
             >
               <Menu className="h-4 w-4" />
             </Button>
