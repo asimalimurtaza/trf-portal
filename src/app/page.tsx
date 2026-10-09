@@ -61,7 +61,6 @@ function DashboardContent() {
               onOpenNewTransaction={() => setIsTransactionModalOpen(true)}
               onOpenNewClaim={() => setIsClaimModalOpen(true)}
               onOpenNewTreat={() => setIsTreatModalOpen(true)}
-              onOpenAddVenue={() => setIsVenueModalOpen(true)}
             />
           )}
 

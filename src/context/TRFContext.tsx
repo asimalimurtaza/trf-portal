@@ -21,6 +21,7 @@ import {
   INITIAL_VENUES,
   INITIAL_PLANNED_ACTIVITIES,
 } from '@/lib/mock-data';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import confetti from 'canvas-confetti';
 
 interface TRFContextType {
@@ -33,6 +34,7 @@ interface TRFContextType {
   treatEvents: MemberTreatEvent[];
   venues: VenuePlace[];
   plannedActivities: PlannedActivity[];
+  isSupabaseLive: boolean;
   
   // Computed values
   currentBalance: number;
@@ -106,7 +108,7 @@ interface TRFContextType {
 
 const TRFContext = createContext<TRFContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'trf_portal_state_v1';
+const STORAGE_KEY = 'trf_portal_state_v2';
 const MONTHLY_RATE = 1400; // 1400 PKR per head per month
 
 export function TRFProvider({ children }: { children: React.ReactNode }) {
@@ -119,30 +121,98 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
   const [venues, setVenues] = useState<VenuePlace[]>(INITIAL_VENUES);
   const [plannedActivities, setPlannedActivities] = useState<PlannedActivity[]>(INITIAL_PLANNED_ACTIVITIES);
   const [currentUserId, setCurrentUserId] = useState<string>('user-1'); // Default Asim Khan (Manager)
+  const [isSupabaseLive, setIsSupabaseLive] = useState(isSupabaseConfigured);
 
-  // Load from localStorage if present
+  // 1. Initial Load: LocalStorage & Supabase Hydration
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.members) setMembers(parsed.members);
-        if (parsed.claims) setClaims(parsed.claims);
-        if (parsed.transactions) setTransactions(parsed.transactions);
-        if (parsed.rules) setRules(parsed.rules);
-        if (parsed.treatEvents) setTreatEvents(parsed.treatEvents);
-        if (parsed.venues) setVenues(parsed.venues);
-        if (parsed.plannedActivities) setPlannedActivities(parsed.plannedActivities);
-        if (parsed.currentUserId) setCurrentUserId(parsed.currentUserId);
+    async function loadData() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.members) setMembers(parsed.members);
+          if (parsed.claims) setClaims(parsed.claims);
+          if (parsed.transactions) setTransactions(parsed.transactions);
+          if (parsed.rules) setRules(parsed.rules);
+          if (parsed.treatEvents) setTreatEvents(parsed.treatEvents);
+          if (parsed.venues) setVenues(parsed.venues);
+          if (parsed.plannedActivities) setPlannedActivities(parsed.plannedActivities);
+          if (parsed.currentUserId) setCurrentUserId(parsed.currentUserId);
+        }
+
+        // Try Supabase fetch if configured
+        if (isSupabaseConfigured && supabase) {
+          try {
+            const [claimsRes, txRes, venuesRes] = await Promise.all([
+              supabase.from('audit_claims').select('*'),
+              supabase.from('transactions').select('*'),
+              supabase.from('venues').select('*'),
+            ]);
+
+            if (claimsRes.data && claimsRes.data.length > 0) {
+              const mappedClaims: AuditClaim[] = claimsRes.data.map((c) => ({
+                id: c.id,
+                monthYear: c.month_year,
+                headcount: c.headcount,
+                ratePerHead: c.rate_per_head,
+                totalAmount: c.headcount * c.rate_per_head,
+                status: c.status,
+                submissionDate: c.submission_date,
+                disbursedDate: c.disbursed_date,
+                claimRefNumber: c.claim_ref_number,
+                auditNotes: c.audit_notes,
+                submittedBy: 'TRF Manager',
+              }));
+              setClaims(mappedClaims);
+            }
+
+            if (txRes.data && txRes.data.length > 0) {
+              const mappedTx: Transaction[] = txRes.data.map((t) => ({
+                id: t.id,
+                date: t.date,
+                title: t.title,
+                description: t.description,
+                amount: Number(t.amount),
+                type: t.type,
+                category: t.category,
+                loggedBy: 'TRF Custodian',
+                createdAt: t.created_at,
+              }));
+              setTransactions(mappedTx);
+            }
+
+            if (venuesRes.data && venuesRes.data.length > 0) {
+              const mappedVenues: VenuePlace[] = venuesRes.data.map((v) => ({
+                id: v.id,
+                name: v.name,
+                category: v.category,
+                location: v.location,
+                estimatedCostPerHead: Number(v.estimated_cost_per_head || 1500),
+                rating: Number(v.rating || 4.5),
+                votes: [],
+                suggestedBy: 'Team',
+                description: v.description || '',
+                status: v.status || 'wishlist',
+              }));
+              setVenues(mappedVenues);
+            }
+
+            setIsSupabaseLive(true);
+          } catch (err) {
+            console.log('Supabase sync note:', err);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load storage:', e);
+      } finally {
+        setIsLoaded(true);
       }
-    } catch (e) {
-      console.warn('Failed to load local storage state:', e);
-    } finally {
-      setIsLoaded(true);
     }
+
+    loadData();
   }, []);
 
-  // Save to localStorage on changes
+  // 2. Save to localStorage on changes
   useEffect(() => {
     if (!isLoaded) return;
     try {
@@ -197,7 +267,6 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
   };
 
   const toggleRole = () => {
-    // Quickly toggles the current user between Manager and Member for testing
     setMembers((prev) =>
       prev.map((m) =>
         m.id === currentUser.id
@@ -210,10 +279,10 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
   const triggerCelebration = () => {
     try {
       confetti({
-        particleCount: 80,
-        spread: 70,
+        particleCount: 70,
+        spread: 60,
         origin: { y: 0.6 },
-        colors: ['#10b981', '#06b6d4', '#6366f1', '#f59e0b', '#ec4899'],
+        colors: ['#10b981', '#06b6d4', '#8b5cf6', '#f59e0b'],
       });
     } catch (e) {
       console.error(e);
@@ -242,11 +311,31 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       createdAt: new Date().toISOString(),
     };
     setTransactions((prev) => [newTx, ...prev]);
+
+    // Async push to Supabase
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('transactions').insert([
+        {
+          title: data.title,
+          description: data.description || '',
+          amount: data.amount,
+          type: data.type,
+          category: data.category,
+          date: data.date,
+        }
+      ]).then(({ error }) => {
+        if (error) console.log('Supabase sync note:', error.message);
+      });
+    }
   };
 
   const deleteTransaction = (id: string) => {
     if (!isManager) return;
     setTransactions((prev) => prev.filter((t) => t.id !== id));
+
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('transactions').delete().eq('id', id).then();
+    }
   };
 
   const createAuditClaim = (data: {
@@ -262,13 +351,28 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       headcount: data.headcount,
       ratePerHead: MONTHLY_RATE,
       totalAmount,
-      status: 'submitted', // default to submitted to audit
+      status: 'submitted',
       submissionDate: new Date().toISOString().split('T')[0],
       claimRefNumber: data.claimRefNumber || `TRF-AUD-${Date.now().toString().slice(-4)}`,
-      auditNotes: data.auditNotes || `Monthly TRF claim for ${data.headcount} active heads @ PKR 1,400.`,
+      auditNotes: data.auditNotes || `Monthly claim for ${data.headcount} active heads.`,
       submittedBy: currentUser.name,
     };
     setClaims((prev) => [newClaim, ...prev]);
+
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('audit_claims').insert([
+        {
+          month_year: data.monthYear,
+          headcount: data.headcount,
+          rate_per_head: MONTHLY_RATE,
+          status: 'submitted',
+          claim_ref_number: newClaim.claimRefNumber,
+          audit_notes: newClaim.auditNotes,
+        }
+      ]).then(({ error }) => {
+        if (error) console.log('Supabase sync note:', error.message);
+      });
+    }
   };
 
   const updateClaimStatus = (claimId: string, status: ClaimStatus) => {
@@ -287,7 +391,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
           if (status === 'approved_disbursed' && c.status !== 'approved_disbursed') {
             addTransaction({
               title: `Company TRF Allowance - ${c.monthYear}`,
-              description: `${c.headcount} team heads @ 1,400 PKR per head disbursed via Audit (${c.claimRefNumber || 'TRF-AUD'})`,
+              description: `${c.headcount} team heads @ 1,400 PKR disbursed via Audit`,
               amount: c.totalAmount,
               type: 'inflow',
               category: 'company_claim',
@@ -301,6 +405,13 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         return c;
       })
     );
+
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('audit_claims').update({
+        status,
+        disbursed_date: status === 'approved_disbursed' ? new Date().toISOString().split('T')[0] : null,
+      }).eq('id', claimId).then();
+    }
   };
 
   const addMember = (data: {
@@ -332,7 +443,6 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
 
     setMembers((prev) => [...prev, newMember]);
 
-    // Also create a pending treat event for joining fee
     setTreatEvents((prev) => [
       {
         id: `treat-${Date.now()}`,
@@ -357,7 +467,6 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       prev.map((m) => (m.id === memberId ? { ...m, joiningFeeStatus: status } : m))
     );
 
-    // If marked paid, automatically log inflow transaction
     if (status === 'paid' && member.joiningFeeStatus !== 'paid') {
       addTransaction({
         title: `${member.name} - Joining Fee Contribution`,
@@ -369,7 +478,6 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         relatedMemberId: memberId,
       });
 
-      // Also mark corresponding treat event as collected if exists
       setTreatEvents((prev) =>
         prev.map((t) =>
           t.memberId === memberId && t.ruleTitle.includes('Joining')
@@ -400,6 +508,20 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       status: 'pending',
     };
     setTreatEvents((prev) => [newEvent, ...prev]);
+
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('member_treat_events').insert([
+        {
+          rule_title: data.ruleTitle,
+          details: data.details,
+          amount: data.amount,
+          date: newEvent.date,
+          status: 'pending',
+        }
+      ]).then(({ error }) => {
+        if (error) console.log('Supabase sync note:', error.message);
+      });
+    }
   };
 
   const collectTreatPayment = (treatId: string) => {
@@ -415,7 +537,6 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       )
     );
 
-    // Add to transactions ledger
     addTransaction({
       title: `${treat.ruleTitle} - ${treat.memberName}`,
       description: treat.details,
@@ -449,6 +570,21 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       status: 'wishlist',
     };
     setVenues((prev) => [newVenue, ...prev]);
+
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('venues').insert([
+        {
+          name: data.name,
+          category: data.category,
+          location: data.location,
+          estimated_cost_per_head: data.estimatedCostPerHead,
+          description: data.description,
+          status: 'wishlist',
+        }
+      ]).then(({ error }) => {
+        if (error) console.log('Supabase sync note:', error.message);
+      });
+    }
   };
 
   const toggleVenueVote = (venueId: string) => {
@@ -538,6 +674,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         treatEvents,
         venues,
         plannedActivities,
+        isSupabaseLive,
         currentBalance,
         totalInflow,
         totalOutflow,

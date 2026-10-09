@@ -92,30 +92,7 @@ export function FundsLedgerView({ onOpenNewTransaction }: FundsLedgerViewProps) 
         </div>
       </div>
 
-      {/* Ledger Balance Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-          <span className="text-xs text-slate-400">Total Deposits (Inflows)</span>
-          <div className="text-xl font-bold text-emerald-400 mt-1">
-            +{formatPKR(totalInflow)}
-          </div>
-          <span className="text-[11px] text-slate-500">Company Claims & Treats</span>
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-          <span className="text-xs text-slate-400">Total Expenses (Outflows)</span>
-          <div className="text-xl font-bold text-rose-400 mt-1">
-            -{formatPKR(totalOutflow)}
-          </div>
-          <span className="text-[11px] text-slate-500">Dinners, Cakes & Activities</span>
-        </div>
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-4">
-          <span className="text-xs text-slate-300">Net Pool Reserve</span>
-          <div className="text-xl font-extrabold text-white mt-1">
-            {formatPKR(currentBalance)}
-          </div>
-          <span className="text-[11px] text-emerald-400 font-semibold">Available for team use</span>
-        </div>
-      </div>
+
 
       {/* Filter and Search Bar */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
