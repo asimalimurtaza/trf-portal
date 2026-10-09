@@ -226,9 +226,9 @@ export function MembersView({ onOpenAddMember }: MembersViewProps) {
                                   member.role === 'manager' ? 'member' : 'manager'
                                 )
                               }
-                              title={`Switch to ${member.role === 'manager' ? 'Member' : 'Manager'}`}
+                              title={`Change role to ${member.role === 'manager' ? 'Member' : 'Admin'}`}
                             >
-                              Switch
+                              Change Role
                             </Button>
                           </div>
                         ) : (

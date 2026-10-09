@@ -34,9 +34,6 @@ export function Navbar({
   const { 
     currentUser, 
     isManager, 
-    members, 
-    switchUser, 
-    toggleRole, 
     currentBalance,
     logout
   } = useTRF();
@@ -151,38 +148,10 @@ export function Navbar({
                 Profile & Settings
               </button>
 
-              <div className="px-2 py-1 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mt-1">
-                Switch Active Persona
-              </div>
-              <div className="max-h-36 overflow-y-auto space-y-0.5">
-                {members.map((m) => (
-                  <button
-                    key={m.id}
-                    onClick={() => switchUser(m.id)}
-                    className={`w-full flex items-center justify-between rounded px-2 py-1 text-xs text-left cursor-pointer ${
-                      m.id === currentUser.id
-                        ? 'bg-zinc-100 dark:bg-zinc-800 font-medium'
-                        : 'hover:bg-zinc-50 dark:hover:bg-zinc-900'
-                    }`}
-                  >
-                    <span className="truncate">{m.name}</span>
-                    <span className="text-[9px] text-zinc-400">
-                      {m.role === 'manager' ? 'Admin' : 'Member'}
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="pt-1 mt-1 border-t border-zinc-200 dark:border-zinc-800 space-y-0.5">
-                <button
-                  onClick={toggleRole}
-                  className="w-full text-center py-1 text-[11px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer"
-                >
-                  Toggle Role ({isManager ? 'To Member' : 'To Manager'})
-                </button>
+              <div className="pt-1 mt-1 border-t border-zinc-200 dark:border-zinc-800">
                 <button
                   onClick={logout}
-                  className="w-full text-center py-1 text-[11px] text-red-600 dark:text-red-400 hover:underline cursor-pointer"
+                  className="w-full text-left px-2 py-1.5 rounded text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
                 >
                   Sign Out
                 </button>
