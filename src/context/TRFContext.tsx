@@ -50,6 +50,7 @@ interface TRFContextType {
   isAuthenticated: boolean;
   login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
 
   // Profile Management
   updateProfile: (userId: string, data: Partial<Omit<UserProfile, 'id' | 'role'>>) => Promise<void>;
@@ -151,7 +152,20 @@ interface TRFContextType {
     location: string;
     estimatedCostPerHead: number;
     description: string;
-  }) => void;
+  }) => Promise<void>;
+  updateVenue: (
+    venueId: string,
+    data: {
+      name?: string;
+      category?: VenuePlace['category'];
+      location?: string;
+      estimatedCostPerHead?: number;
+      description?: string;
+      status?: 'wishlist' | 'planned' | 'visited';
+      rating?: number;
+    }
+  ) => Promise<void>;
+  deleteVenue: (venueId: string) => Promise<void>;
   toggleVenueVote: (venueId: string) => void;
   createPlannedActivity: (data: {
     title: string;
@@ -162,7 +176,22 @@ interface TRFContextType {
     estimatedTotalBudget: number;
     trfContributionShare: number;
     description: string;
-  }) => void;
+  }) => Promise<void>;
+  updatePlannedActivity: (
+    activityId: string,
+    data: {
+      title?: string;
+      venueName?: string;
+      venueId?: string;
+      date?: string;
+      time?: string;
+      estimatedTotalBudget?: number;
+      trfContributionShare?: number;
+      status?: 'voting' | 'confirmed' | 'completed' | 'cancelled';
+      description?: string;
+    }
+  ) => Promise<void>;
+  deletePlannedActivity: (activityId: string) => Promise<void>;
   updateRSVP: (activityId: string, status: 'going' | 'maybe' | 'not_going') => void;
   triggerCelebration: () => void;
   resetToDemoData: () => void;
@@ -185,8 +214,8 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
   const [plannedActivities, setPlannedActivities] = useState<PlannedActivity[]>(INITIAL_PLANNED_ACTIVITIES);
   const [monthlyPerHeadRate, setMonthlyPerHeadRate] = useState<number>(DEFAULT_MONTHLY_RATE);
   const [defaultJoiningFee, setDefaultJoiningFee] = useState<number>(DEFAULT_JOINING_FEE);
-  const [currentUserId, setCurrentUserId] = useState<string>('user-1'); // Default Asim Khan (Manager)
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  const [currentUserId, setCurrentUserId] = useState<string>('user-1');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isSupabaseLive, setIsSupabaseLive] = useState(isSupabaseConfigured);
 
   // 1. Initial Load: LocalStorage & Supabase Hydration
@@ -208,14 +237,17 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
           if (parsed.defaultJoiningFee) setDefaultJoiningFee(Number(parsed.defaultJoiningFee));
         }
 
-        const savedAuth = localStorage.getItem('trf_is_authenticated');
-        if (savedAuth !== null) {
-          setIsAuthenticated(savedAuth === 'true');
-        }
-
         // Direct Supabase fetch if configured (Supabase is single source of truth)
         if (isSupabaseConfigured && supabase) {
           try {
+            // Check real Supabase Auth session
+            const { data: sessionData } = await supabase.auth.getSession();
+            const sessionUser = sessionData?.session?.user;
+            if (sessionUser) {
+              setIsAuthenticated(true);
+            } else {
+              setIsAuthenticated(false);
+            }
             const [
               claimsRes,
               txRes,
@@ -287,11 +319,38 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
 
               setMembers(mappedProfiles);
 
-              // Auto-set current active user to first manager or first profile
-              setCurrentUserId((prevId) => {
-                if (mappedProfiles.some((m) => m.id === prevId)) return prevId;
-                const manager = mappedProfiles.find((m) => m.role === 'manager');
-                return manager ? manager.id : mappedProfiles[0].id;
+              // Set current active user to authenticated user or first profile
+              if (sessionUser) {
+                const uEmail = sessionUser.email?.toLowerCase();
+                const uId = sessionUser.id;
+                const matched = mappedProfiles.find((m) => m.id === uId || m.email.toLowerCase() === uEmail);
+                if (matched) {
+                  setCurrentUserId(matched.id);
+                } else {
+                  const manager = mappedProfiles.find((m) => m.role === 'manager');
+                  setCurrentUserId(manager ? manager.id : mappedProfiles[0].id);
+                }
+              } else {
+                setCurrentUserId((prevId) => {
+                  if (mappedProfiles.some((m) => m.id === prevId)) return prevId;
+                  const manager = mappedProfiles.find((m) => m.role === 'manager');
+                  return manager ? manager.id : mappedProfiles[0].id;
+                });
+              }
+
+              // Listen to Supabase Auth state changes reactively
+              supabase.auth.onAuthStateChange((_event, session) => {
+                if (session?.user) {
+                  setIsAuthenticated(true);
+                  const uEmail = session.user.email?.toLowerCase();
+                  const uId = session.user.id;
+                  setCurrentUserId((prev) => {
+                    const matched = mappedProfiles.find((m) => m.id === uId || m.email.toLowerCase() === uEmail);
+                    return matched ? matched.id : prev;
+                  });
+                } else {
+                  setIsAuthenticated(false);
+                }
               });
             }
 
@@ -449,36 +508,42 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
 
   // Authentication Methods
   const login = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
-    // 1. Check Supabase auth if configured
-    if (isSupabaseConfigured && supabase && password) {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-        if (data?.user) {
-          const matched = members.find((m) => m.email.toLowerCase() === email.trim().toLowerCase());
-          if (matched) setCurrentUserId(matched.id);
-          setIsAuthenticated(true);
-          try { localStorage.setItem('trf_is_authenticated', 'true'); } catch {}
-          return { success: true };
-        }
-        if (error) console.warn('Supabase auth signIn error:', error.message);
-      } catch (err: any) {
-        console.warn('Supabase auth catch:', err);
+    if (!email || !email.trim()) {
+      return { success: false, error: 'Please enter your corporate email address.' };
+    }
+    if (!password || !password.trim()) {
+      return { success: false, error: 'Password is required to sign in.' };
+    }
+
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: false, error: 'Authentication service is currently unavailable.' };
+    }
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password.trim(),
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
       }
-    }
 
-    // 2. Demo / Team member lookup fallback
-    const matched = members.find((m) => m.email.toLowerCase() === email.trim().toLowerCase());
-    if (matched) {
-      setCurrentUserId(matched.id);
-      setIsAuthenticated(true);
-      try { localStorage.setItem('trf_is_authenticated', 'true'); } catch {}
-      return { success: true };
-    }
+      if (data?.user && data?.session) {
+        setIsAuthenticated(true);
+        const userEmail = data.user.email?.toLowerCase();
+        const userId = data.user.id;
+        const matched = members.find((m) => m.id === userId || m.email.toLowerCase() === userEmail);
+        if (matched) {
+          setCurrentUserId(matched.id);
+        }
+        return { success: true };
+      }
 
-    return { success: false, error: 'No active profile found for this email. Contact your TRF Manager.' };
+      return { success: false, error: 'Invalid login credentials.' };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Authentication error.' };
+    }
   };
 
   const logout = async () => {
@@ -489,8 +554,28 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     }
     setIsAuthenticated(false);
     try {
-      localStorage.setItem('trf_is_authenticated', 'false');
+      localStorage.removeItem('trf_is_authenticated');
     } catch {}
+  };
+
+  const resetPassword = async (email: string): Promise<{ success: boolean; error?: string }> => {
+    if (!email || !email.trim()) {
+      return { success: false, error: 'Please enter your corporate email address.' };
+    }
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: false, error: 'Database service is unavailable.' };
+    }
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+      });
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Failed to send reset link.' };
+    }
   };
 
   // Profile Management (For all users on their own profile)
@@ -1168,15 +1253,37 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addVenue = (data: {
+  const addVenue = async (data: {
     name: string;
     category: VenuePlace['category'];
     location: string;
     estimatedCostPerHead: number;
     description: string;
   }) => {
+    let newId = `venue-${Date.now()}`;
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: inserted, error } = await supabase.from('venues').insert([
+          {
+            name: data.name,
+            category: data.category,
+            location: data.location,
+            estimated_cost_per_head: data.estimatedCostPerHead,
+            description: data.description,
+            status: 'wishlist',
+          }
+        ]).select();
+        if (inserted && inserted[0]) {
+          newId = inserted[0].id;
+        }
+        if (error) console.log('Supabase venue insert note:', error.message);
+      } catch (err) {
+        console.warn('Supabase venue insert error:', err);
+      }
+    }
+
     const newVenue: VenuePlace = {
-      id: `venue-${Date.now()}`,
+      id: newId,
       name: data.name,
       category: data.category,
       location: data.location,
@@ -1188,20 +1295,63 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       status: 'wishlist',
     };
     setVenues((prev) => [newVenue, ...prev]);
+  };
+
+  const updateVenue = async (
+    venueId: string,
+    data: {
+      name?: string;
+      category?: VenuePlace['category'];
+      location?: string;
+      estimatedCostPerHead?: number;
+      description?: string;
+      status?: 'wishlist' | 'planned' | 'visited';
+      rating?: number;
+    }
+  ) => {
+    setVenues((prev) =>
+      prev.map((v) => {
+        if (v.id === venueId) {
+          return {
+            ...v,
+            name: data.name !== undefined ? data.name : v.name,
+            category: data.category !== undefined ? data.category : v.category,
+            location: data.location !== undefined ? data.location : v.location,
+            estimatedCostPerHead: data.estimatedCostPerHead !== undefined ? data.estimatedCostPerHead : v.estimatedCostPerHead,
+            description: data.description !== undefined ? data.description : v.description,
+            status: data.status !== undefined ? data.status : v.status,
+            rating: data.rating !== undefined ? data.rating : v.rating,
+          };
+        }
+        return v;
+      })
+    );
 
     if (isSupabaseConfigured && supabase) {
-      supabase.from('venues').insert([
-        {
-          name: data.name,
-          category: data.category,
-          location: data.location,
-          estimated_cost_per_head: data.estimatedCostPerHead,
-          description: data.description,
-          status: 'wishlist',
-        }
-      ]).then(({ error }) => {
-        if (error) console.log('Supabase sync note:', error.message);
-      });
+      try {
+        const payload: Record<string, any> = {};
+        if (data.name !== undefined) payload.name = data.name;
+        if (data.category !== undefined) payload.category = data.category;
+        if (data.location !== undefined) payload.location = data.location;
+        if (data.estimatedCostPerHead !== undefined) payload.estimated_cost_per_head = data.estimatedCostPerHead;
+        if (data.description !== undefined) payload.description = data.description;
+        if (data.status !== undefined) payload.status = data.status;
+        if (data.rating !== undefined) payload.rating = data.rating;
+        await supabase.from('venues').update(payload).eq('id', venueId);
+      } catch (err) {
+        console.warn('Supabase venue update note:', err);
+      }
+    }
+  };
+
+  const deleteVenue = async (venueId: string) => {
+    setVenues((prev) => prev.filter((v) => v.id !== venueId));
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('venues').delete().eq('id', venueId);
+      } catch (err) {
+        console.warn('Supabase venue delete note:', err);
+      }
     }
   };
 
@@ -1220,7 +1370,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
-  const createPlannedActivity = (data: {
+  const createPlannedActivity = async (data: {
     title: string;
     venueName: string;
     venueId?: string;
@@ -1233,13 +1383,39 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     const remainingBudget = Math.max(0, data.estimatedTotalBudget - data.trfContributionShare);
     const personalShare = activeHeadcount > 0 ? Math.round(remainingBudget / activeHeadcount) : 0;
 
+    let newId = `act-${Date.now()}`;
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: inserted, error } = await supabase.from('planned_activities').insert([
+          {
+            title: data.title,
+            venue_name: data.venueName,
+            venue_id: data.venueId || null,
+            date: data.date,
+            time: data.time || '7:30 PM',
+            estimated_total_budget: data.estimatedTotalBudget,
+            trf_contribution_share: data.trfContributionShare,
+            personal_contribution_per_head: personalShare,
+            status: 'voting',
+            description: data.description,
+          }
+        ]).select();
+        if (inserted && inserted[0]) {
+          newId = inserted[0].id;
+        }
+        if (error) console.log('Supabase activity insert note:', error.message);
+      } catch (err) {
+        console.warn('Supabase activity insert note:', err);
+      }
+    }
+
     const newActivity: PlannedActivity = {
-      id: `act-${Date.now()}`,
+      id: newId,
       title: data.title,
       venueName: data.venueName,
       venueId: data.venueId,
       date: data.date,
-      time: data.time || '7:00 PM',
+      time: data.time || '7:30 PM',
       estimatedTotalBudget: data.estimatedTotalBudget,
       trfContributionShare: data.trfContributionShare,
       personalContributionPerHead: personalShare,
@@ -1252,6 +1428,84 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       })),
     };
     setPlannedActivities((prev) => [newActivity, ...prev]);
+  };
+
+  const updatePlannedActivity = async (
+    activityId: string,
+    data: {
+      title?: string;
+      venueName?: string;
+      venueId?: string;
+      date?: string;
+      time?: string;
+      estimatedTotalBudget?: number;
+      trfContributionShare?: number;
+      status?: 'voting' | 'confirmed' | 'completed' | 'cancelled';
+      description?: string;
+    }
+  ) => {
+    setPlannedActivities((prev) =>
+      prev.map((act) => {
+        if (act.id === activityId) {
+          const newTotal = data.estimatedTotalBudget !== undefined ? data.estimatedTotalBudget : act.estimatedTotalBudget;
+          const newTrf = data.trfContributionShare !== undefined ? data.trfContributionShare : act.trfContributionShare;
+          const remainingBudget = Math.max(0, newTotal - newTrf);
+          const personalShare = activeHeadcount > 0 ? Math.round(remainingBudget / activeHeadcount) : 0;
+
+          return {
+            ...act,
+            title: data.title !== undefined ? data.title : act.title,
+            venueName: data.venueName !== undefined ? data.venueName : act.venueName,
+            venueId: data.venueId !== undefined ? data.venueId : act.venueId,
+            date: data.date !== undefined ? data.date : act.date,
+            time: data.time !== undefined ? data.time : act.time,
+            estimatedTotalBudget: newTotal,
+            trfContributionShare: newTrf,
+            personalContributionPerHead: personalShare,
+            status: data.status !== undefined ? data.status : act.status,
+            description: data.description !== undefined ? data.description : act.description,
+          };
+        }
+        return act;
+      })
+    );
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const payload: Record<string, any> = {};
+        if (data.title !== undefined) payload.title = data.title;
+        if (data.venueName !== undefined) payload.venue_name = data.venueName;
+        if (data.venueId !== undefined) payload.venue_id = data.venueId || null;
+        if (data.date !== undefined) payload.date = data.date;
+        if (data.time !== undefined) payload.time = data.time;
+        if (data.estimatedTotalBudget !== undefined) payload.estimated_total_budget = data.estimatedTotalBudget;
+        if (data.trfContributionShare !== undefined) payload.trf_contribution_share = data.trfContributionShare;
+        if (data.status !== undefined) payload.status = data.status;
+        if (data.description !== undefined) payload.description = data.description;
+        if (data.estimatedTotalBudget !== undefined || data.trfContributionShare !== undefined) {
+          const act = plannedActivities.find((a) => a.id === activityId);
+          const total = data.estimatedTotalBudget !== undefined ? data.estimatedTotalBudget : (act?.estimatedTotalBudget || 0);
+          const trf = data.trfContributionShare !== undefined ? data.trfContributionShare : (act?.trfContributionShare || 0);
+          const rem = Math.max(0, total - trf);
+          payload.personal_contribution_per_head = activeHeadcount > 0 ? Math.round(rem / activeHeadcount) : 0;
+        }
+
+        await supabase.from('planned_activities').update(payload).eq('id', activityId);
+      } catch (err) {
+        console.warn('Supabase activity update note:', err);
+      }
+    }
+  };
+
+  const deletePlannedActivity = async (activityId: string) => {
+    setPlannedActivities((prev) => prev.filter((act) => act.id !== activityId));
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('planned_activities').delete().eq('id', activityId);
+      } catch (err) {
+        console.warn('Supabase activity delete note:', err);
+      }
+    }
   };
 
   const updateRSVP = (activityId: string, status: 'going' | 'maybe' | 'not_going') => {
@@ -1304,6 +1558,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated,
         login,
         logout,
+        resetPassword,
         updateProfile,
         updateUserRole,
         toggleUserActive,
@@ -1327,8 +1582,12 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         deleteTreatEvent,
         collectTreatPayment,
         addVenue,
+        updateVenue,
+        deleteVenue,
         toggleVenueVote,
         createPlannedActivity,
+        updatePlannedActivity,
+        deletePlannedActivity,
         updateRSVP,
         triggerCelebration,
         resetToDemoData,

@@ -54,7 +54,7 @@ export function AuditClaimsView({ onOpenNewClaim }: AuditClaimsViewProps) {
             Monthly Audit Claims
           </h2>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 font-mono">
-            Rate: {activeHeadcount} Heads × PKR 1,400 = {formatPKR(activeHeadcount * monthlyPerHeadRate)} / month
+            Rate: {activeHeadcount} Heads × {formatPKR(monthlyPerHeadRate)} = {formatPKR(activeHeadcount * monthlyPerHeadRate)} / month
           </p>
         </div>
 

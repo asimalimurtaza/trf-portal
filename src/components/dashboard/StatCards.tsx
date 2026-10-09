@@ -53,7 +53,7 @@ export function StatCards() {
           <CardTitle className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
             Monthly Company TRF
           </CardTitle>
-          <span className="text-[11px] font-mono text-zinc-400">1,400 / HEAD</span>
+          <span className="text-[11px] font-mono text-zinc-400">{monthlyPerHeadRate.toLocaleString()} / HEAD</span>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold tracking-tight font-mono">

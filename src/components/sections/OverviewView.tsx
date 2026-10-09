@@ -94,7 +94,7 @@ export function OverviewView({
                 </Badge>
               </div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                {latestClaim.headcount} active heads (@ 1,400 PKR) • Voucher {latestClaim.claimRefNumber || 'TRF-AUD'}
+                {latestClaim.headcount} active heads (@ {formatPKR(latestClaim.ratePerHead || 1400)}) • Voucher {latestClaim.claimRefNumber || 'TRF-AUD'}
               </p>
             </div>
 

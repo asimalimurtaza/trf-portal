@@ -23,9 +23,14 @@ interface SubmitClaimModalProps {
 export function SubmitClaimModal({ isOpen, onClose }: SubmitClaimModalProps) {
   const { createAuditClaim, activeHeadcount, monthlyPerHeadRate } = useTRF();
 
-  const [monthYear, setMonthYear] = useState('November 2026');
+  const [monthYear, setMonthYear] = useState(() => {
+    return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  });
   const [headcount, setHeadcount] = useState<number>(activeHeadcount);
-  const [claimRefNumber, setClaimRefNumber] = useState('TRF-AUD-2026-11');
+  const [claimRefNumber, setClaimRefNumber] = useState(() => {
+    const d = new Date();
+    return `TRF-AUD-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [auditNotes, setAuditNotes] = useState('Monthly TRF allowance claim submitted for internal audit verification.');
 
   const totalCalculated = (headcount || 0) * monthlyPerHeadRate;
@@ -50,7 +55,7 @@ export function SubmitClaimModal({ isOpen, onClose }: SubmitClaimModalProps) {
         <DialogHeader>
           <DialogTitle>Monthly TRF Audit Claim</DialogTitle>
           <DialogDescription>
-            Company allowance claim voucher based on PKR 1,400 per head
+            Company allowance claim voucher based on {formatPKR(monthlyPerHeadRate)} per head
           </DialogDescription>
         </DialogHeader>
 

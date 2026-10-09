@@ -8,7 +8,9 @@ import {
   ThumbsUp,
   MapPin,
   Calendar,
-  Users
+  Users,
+  Edit2,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +26,9 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { EditVenueModal } from '@/components/modals/EditVenueModal';
+import { EditActivityModal } from '@/components/modals/EditActivityModal';
+import { VenuePlace, PlannedActivity } from '@/types/trf';
 import { motion } from 'framer-motion';
 
 interface ActivitiesVenuesViewProps {
@@ -34,8 +39,10 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
   const {
     venues,
     toggleVenueVote,
+    deleteVenue,
     plannedActivities,
     updateRSVP,
+    deletePlannedActivity,
     currentUser,
     isManager,
     createPlannedActivity,
@@ -43,20 +50,27 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
 
   const [activeTab, setActiveTab] = useState<'venues' | 'activities'>('venues');
   const [showPlanActivityModal, setShowPlanActivityModal] = useState(false);
+  const [editingVenue, setEditingVenue] = useState<VenuePlace | null>(null);
+  const [editingActivity, setEditingActivity] = useState<PlannedActivity | null>(null);
 
+  // New Outing Form State
   const [actTitle, setActTitle] = useState('');
-  const [actVenueName, setActVenueName] = useState('Roasters Coffee House & Grill');
-  const [actDate, setActDate] = useState('2026-10-30');
-  const [actTime, setActTime] = useState('7:30 PM');
-  const [actTotalBudget, setActTotalBudget] = useState('18000');
-  const [actTrfShare, setActTrfShare] = useState('12000');
+  const [actVenueName, setActVenueName] = useState('');
+  const [actDate, setActDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 14);
+    return d.toISOString().split('T')[0];
+  });
+  const [actTime, setActTime] = useState('8:00 PM');
+  const [actTotalBudget, setActTotalBudget] = useState('15000');
+  const [actTrfShare, setActTrfShare] = useState('10000');
   const [actDesc, setActDesc] = useState('');
 
-  const handleCreateActivity = (e: React.FormEvent) => {
+  const handleCreateActivity = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!actTitle.trim() || !actVenueName.trim()) return;
 
-    createPlannedActivity({
+    await createPlannedActivity({
       title: actTitle.trim(),
       venueName: actVenueName.trim(),
       date: actDate,
@@ -66,6 +80,9 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
       description: actDesc.trim(),
     });
 
+    setActTitle('');
+    setActVenueName('');
+    setActDesc('');
     setShowPlanActivityModal(false);
     setActiveTab('activities');
   };
@@ -84,7 +101,7 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
             Places & Outings
           </h2>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-            Team wishlist voting, planned outings, and TRF pool subsidies
+            Team wishlist destinations, voting, planned outings, and TRF subsidies
           </p>
         </div>
 
@@ -102,7 +119,12 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
           {isManager && (
             <Button
               size="sm"
-              onClick={() => setShowPlanActivityModal(true)}
+              onClick={() => {
+                if (venues.length > 0 && !actVenueName) {
+                  setActVenueName(venues[0].name);
+                }
+                setShowPlanActivityModal(true);
+              }}
               className="gap-1.5"
             >
               <Calendar className="h-3.5 w-3.5" />
@@ -128,6 +150,8 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {venues.map((venue) => {
               const hasVoted = venue.votes.includes(currentUser.id);
+              const canEdit = isManager || venue.suggestedBy === currentUser.name;
+
               return (
                 <Card key={venue.id} className="flex flex-col justify-between">
                   <CardHeader className="pb-3">
@@ -135,9 +159,22 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
                       <Badge variant="outline" className="text-[10px] capitalize">
                         {venue.category}
                       </Badge>
-                      <span className="text-xs text-zinc-500 font-mono">
-                        ★ {venue.rating}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-zinc-500 font-mono">
+                          ★ {venue.rating}
+                        </span>
+                        {canEdit && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+                            onClick={() => setEditingVenue(venue)}
+                            title="Edit place"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     <CardTitle className="text-base mt-2">{venue.name}</CardTitle>
                     <CardDescription className="flex items-center gap-1 text-xs">
@@ -158,15 +195,28 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
                       </div>
                     </div>
 
-                    <Button
-                      variant={hasVoted ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => toggleVenueVote(venue.id)}
-                      className="gap-1.5 h-8 text-xs"
-                    >
-                      <ThumbsUp className={`h-3 w-3 ${hasVoted ? 'fill-current' : ''}`} />
-                      <span>{venue.votes.length} {venue.votes.length === 1 ? 'Vote' : 'Votes'}</span>
-                    </Button>
+                    <div className="flex items-center gap-1.5">
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingVenue(venue)}
+                          className="h-8 text-xs text-muted-foreground"
+                        >
+                          Edit
+                        </Button>
+                      )}
+
+                      <Button
+                        variant={hasVoted ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => toggleVenueVote(venue.id)}
+                        className="gap-1.5 h-8 text-xs"
+                      >
+                        <ThumbsUp className={`h-3 w-3 ${hasVoted ? 'fill-current' : ''}`} />
+                        <span>{venue.votes.length} {venue.votes.length === 1 ? 'Vote' : 'Votes'}</span>
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               );
@@ -200,8 +250,37 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
                           {act.venueName}
                         </span>
                       </div>
-                      <div className="text-xs font-mono text-zinc-500">
-                        {formatDate(act.date)} at {act.time}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-zinc-500">
+                          {formatDate(act.date)} at {act.time}
+                        </span>
+
+                        {isManager && (
+                          <div className="flex items-center gap-1 ml-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs gap-1"
+                              onClick={() => setEditingActivity(act)}
+                            >
+                              <Edit2 className="h-3 w-3" />
+                              <span>Edit</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-zinc-400 hover:text-red-600"
+                              onClick={() => {
+                                if (window.confirm(`Delete outing "${act.title}"?`)) {
+                                  deletePlannedActivity(act.id);
+                                }
+                              }}
+                              title="Delete outing"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <CardTitle className="text-base mt-1">{act.title}</CardTitle>
@@ -297,14 +376,39 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="act-venue">Venue Name</Label>
-              <Input
-                id="act-venue"
-                required
-                value={actVenueName}
-                onChange={(e) => setActVenueName(e.target.value)}
-                placeholder="e.g. Roasters Coffee House & Grill"
-              />
+              <div className="flex items-center justify-between">
+                <Label htmlFor="act-venue">Venue Name</Label>
+                {venues.length > 0 && (
+                  <span className="text-[10px] text-muted-foreground">Select from wishlist or type</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  id="act-venue"
+                  required
+                  value={actVenueName}
+                  onChange={(e) => setActVenueName(e.target.value)}
+                  placeholder="e.g. Monash BBQ & Grill"
+                  className="flex-1"
+                />
+                {venues.length > 0 && (
+                  <select
+                    aria-label="Select venue"
+                    onChange={(e) => {
+                      if (e.target.value) setActVenueName(e.target.value);
+                    }}
+                    defaultValue=""
+                    className="h-9 rounded-md border border-input bg-transparent px-2 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="" disabled>Wishlist</option>
+                    {venues.map((v) => (
+                      <option key={v.id} value={v.name} className="bg-background">
+                        {v.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -324,7 +428,7 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
                   id="act-time"
                   value={actTime}
                   onChange={(e) => setActTime(e.target.value)}
-                  placeholder="7:30 PM"
+                  placeholder="8:00 PM"
                 />
               </div>
             </div>
@@ -350,6 +454,16 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
               </div>
             </div>
 
+            <div className="space-y-1.5">
+              <Label htmlFor="act-desc-input">Description / Notes</Label>
+              <Input
+                id="act-desc-input"
+                value={actDesc}
+                onChange={(e) => setActDesc(e.target.value)}
+                placeholder="Optional details, reservation notes, etc."
+              />
+            </div>
+
             <DialogFooter className="pt-2">
               <Button
                 type="button"
@@ -365,6 +479,20 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Venue Modal */}
+      <EditVenueModal
+        venue={editingVenue}
+        isOpen={Boolean(editingVenue)}
+        onClose={() => setEditingVenue(null)}
+      />
+
+      {/* Edit Activity Modal */}
+      <EditActivityModal
+        activity={editingActivity}
+        isOpen={Boolean(editingActivity)}
+        onClose={() => setEditingActivity(null)}
+      />
     </motion.div>
   );
 }
