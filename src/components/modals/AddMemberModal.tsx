@@ -21,7 +21,7 @@ interface AddMemberModalProps {
 }
 
 export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
-  const { addMember } = useTRF();
+  const { addMember, defaultJoiningFee } = useTRF();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -30,10 +30,16 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
   const [department, setDepartment] = useState('Engineering');
   const [designation, setDesignation] = useState('');
   const [birthDate, setBirthDate] = useState('2000-01-01');
-  const [joiningFeeAmount, setJoiningFeeAmount] = useState('1000');
+  const [joiningFeeAmount, setJoiningFeeAmount] = useState(defaultJoiningFee.toString());
   const [phone, setPhone] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setJoiningFeeAmount(defaultJoiningFee.toString());
+    }
+  }, [isOpen, defaultJoiningFee]);
 
   const generateRandomPassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$';

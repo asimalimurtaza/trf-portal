@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TRF Portal - Team Recreational Funds",
-  description: "Portal for managing Team Recreational Funds, 1,400 PKR/head company claims, birthdays, treats, and activities.",
+  title: "Vicenna-AlmusNet TRF Portal",
+  description: "Vicenna-AlmusNet Team Recreational Funds",
 };
 
 export default function RootLayout({

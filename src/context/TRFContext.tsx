@@ -42,7 +42,8 @@ interface TRFContextType {
   totalOutflow: number;
   pendingAuditAmount: number;
   pendingMemberDuesAmount: number;
-  monthlyPerHeadRate: number; // 1400
+  monthlyPerHeadRate: number; // e.g. 1400 PKR
+  defaultJoiningFee: number; // e.g. 1000 PKR
   activeHeadcount: number;
 
   // Authentication & Session
@@ -57,6 +58,30 @@ interface TRFContextType {
   updateUserRole: (userId: string, newRole: 'manager' | 'member') => Promise<void>;
   toggleUserActive: (userId: string) => Promise<void>;
   deleteMember: (userId: string) => Promise<void>;
+
+  // Contribution Rules & System Rates
+  addRule: (data: {
+    title: string;
+    description: string;
+    suggestedAmount: number;
+    icon?: string;
+    isMandatory: boolean;
+  }) => void;
+  updateRule: (
+    ruleId: string,
+    data: {
+      title?: string;
+      description?: string;
+      suggestedAmount?: number;
+      icon?: string;
+      isMandatory?: boolean;
+    }
+  ) => void;
+  deleteRule: (ruleId: string) => void;
+  updateSystemRates: (rates: {
+    monthlyPerHeadRate?: number;
+    defaultJoiningFee?: number;
+  }) => void;
 
   // Actions
   switchUser: (userId: string) => void;
@@ -146,7 +171,8 @@ interface TRFContextType {
 const TRFContext = createContext<TRFContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'trf_portal_state_v2';
-const MONTHLY_RATE = 1400; // 1400 PKR per head per month
+const DEFAULT_MONTHLY_RATE = 1400; // 1400 PKR per head per month
+const DEFAULT_JOINING_FEE = 1000;  // 1000 PKR
 
 export function TRFProvider({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -157,6 +183,8 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
   const [treatEvents, setTreatEvents] = useState<MemberTreatEvent[]>(INITIAL_TREAT_EVENTS);
   const [venues, setVenues] = useState<VenuePlace[]>(INITIAL_VENUES);
   const [plannedActivities, setPlannedActivities] = useState<PlannedActivity[]>(INITIAL_PLANNED_ACTIVITIES);
+  const [monthlyPerHeadRate, setMonthlyPerHeadRate] = useState<number>(DEFAULT_MONTHLY_RATE);
+  const [defaultJoiningFee, setDefaultJoiningFee] = useState<number>(DEFAULT_JOINING_FEE);
   const [currentUserId, setCurrentUserId] = useState<string>('user-1'); // Default Asim Khan (Manager)
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [isSupabaseLive, setIsSupabaseLive] = useState(isSupabaseConfigured);
@@ -176,6 +204,8 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
           if (parsed.venues) setVenues(parsed.venues);
           if (parsed.plannedActivities) setPlannedActivities(parsed.plannedActivities);
           if (parsed.currentUserId) setCurrentUserId(parsed.currentUserId);
+          if (parsed.monthlyPerHeadRate) setMonthlyPerHeadRate(Number(parsed.monthlyPerHeadRate));
+          if (parsed.defaultJoiningFee) setDefaultJoiningFee(Number(parsed.defaultJoiningFee));
         }
 
         const savedAuth = localStorage.getItem('trf_is_authenticated');
@@ -186,11 +216,12 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         // Try Supabase fetch if configured
         if (isSupabaseConfigured && supabase) {
           try {
-            const [claimsRes, txRes, venuesRes, profilesRes] = await Promise.all([
+            const [claimsRes, txRes, venuesRes, profilesRes, rulesRes] = await Promise.all([
               supabase.from('audit_claims').select('*'),
               supabase.from('transactions').select('*'),
               supabase.from('venues').select('*'),
               supabase.from('profiles').select('*'),
+              supabase.from('contribution_rules').select('*'),
             ]);
 
             if (profilesRes.data && profilesRes.data.length > 0) {
@@ -260,6 +291,18 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
               setVenues(mappedVenues);
             }
 
+            if (rulesRes.data && rulesRes.data.length > 0) {
+              const mappedRules: ContributionRule[] = rulesRes.data.map((r) => ({
+                id: r.id,
+                title: r.title,
+                description: r.description || '',
+                suggestedAmount: Number(r.suggested_amount || 0),
+                icon: r.icon || 'Gift',
+                isMandatory: Boolean(r.is_mandatory),
+              }));
+              setRules(mappedRules);
+            }
+
             setIsSupabaseLive(true);
           } catch (err) {
             console.log('Supabase sync note:', err);
@@ -288,12 +331,14 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         venues,
         plannedActivities,
         currentUserId,
+        monthlyPerHeadRate,
+        defaultJoiningFee,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
     } catch (e) {
       console.warn('Failed to save to local storage:', e);
     }
-  }, [isLoaded, members, claims, transactions, rules, treatEvents, venues, plannedActivities, currentUserId]);
+  }, [isLoaded, members, claims, transactions, rules, treatEvents, venues, plannedActivities, currentUserId, monthlyPerHeadRate, defaultJoiningFee]);
 
   const currentUser = members.find((m) => m.id === currentUserId) || members[0] || INITIAL_MEMBERS[0];
   const isManager = currentUser.role === 'manager';
@@ -514,12 +559,12 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     claimRefNumber?: string;
     auditNotes?: string;
   }) => {
-    const totalAmount = data.headcount * MONTHLY_RATE;
+    const totalAmount = data.headcount * monthlyPerHeadRate;
     const newClaim: AuditClaim = {
       id: `claim-${Date.now()}`,
       monthYear: data.monthYear,
       headcount: data.headcount,
-      ratePerHead: MONTHLY_RATE,
+      ratePerHead: monthlyPerHeadRate,
       totalAmount,
       status: 'submitted',
       submissionDate: new Date().toISOString().split('T')[0],
@@ -534,7 +579,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         {
           month_year: data.monthYear,
           headcount: data.headcount,
-          rate_per_head: MONTHLY_RATE,
+          rate_per_head: monthlyPerHeadRate,
           status: 'submitted',
           claim_ref_number: newClaim.claimRefNumber,
           audit_notes: newClaim.auditNotes,
@@ -704,7 +749,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       birthDate: data.birthDate,
       phone: data.phone,
       joiningFeeStatus: 'pending',
-      joiningFeeAmount: data.joiningFeeAmount || 1000,
+      joiningFeeAmount: data.joiningFeeAmount !== undefined ? data.joiningFeeAmount : defaultJoiningFee,
       isActive: true,
       avatarUrl: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100`,
     };
@@ -718,7 +763,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         memberName: data.name,
         ruleTitle: 'New Member Joining Fee',
         details: 'Initial TRF pool entry contribution',
-        amount: data.joiningFeeAmount || 1000,
+        amount: data.joiningFeeAmount !== undefined ? data.joiningFeeAmount : defaultJoiningFee,
         date: new Date().toISOString().split('T')[0],
         status: 'pending',
       },
@@ -908,6 +953,94 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const addRule = (data: {
+    title: string;
+    description: string;
+    suggestedAmount: number;
+    icon?: string;
+    isMandatory: boolean;
+  }) => {
+    const newRule: ContributionRule = {
+      id: `rule-${Date.now()}`,
+      title: data.title,
+      description: data.description,
+      suggestedAmount: data.suggestedAmount,
+      icon: data.icon || 'Gift',
+      isMandatory: data.isMandatory,
+    };
+    setRules((prev) => [...prev, newRule]);
+
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('contribution_rules').insert([
+        {
+          title: data.title,
+          description: data.description,
+          suggested_amount: data.suggestedAmount,
+          icon: data.icon || 'Gift',
+          is_mandatory: data.isMandatory,
+        }
+      ]).then(({ error }) => {
+        if (error) console.log('Supabase rule insert note:', error.message);
+      });
+    }
+  };
+
+  const updateRule = (
+    ruleId: string,
+    data: {
+      title?: string;
+      description?: string;
+      suggestedAmount?: number;
+      icon?: string;
+      isMandatory?: boolean;
+    }
+  ) => {
+    setRules((prev) =>
+      prev.map((r) => {
+        if (r.id === ruleId) {
+          return {
+            ...r,
+            title: data.title !== undefined ? data.title : r.title,
+            description: data.description !== undefined ? data.description : r.description,
+            suggestedAmount: data.suggestedAmount !== undefined ? data.suggestedAmount : r.suggestedAmount,
+            icon: data.icon !== undefined ? data.icon : r.icon,
+            isMandatory: data.isMandatory !== undefined ? data.isMandatory : r.isMandatory,
+          };
+        }
+        return r;
+      })
+    );
+
+    if (isSupabaseConfigured && supabase) {
+      const payload: Record<string, any> = {};
+      if (data.title !== undefined) payload.title = data.title;
+      if (data.description !== undefined) payload.description = data.description;
+      if (data.suggestedAmount !== undefined) payload.suggested_amount = data.suggestedAmount;
+      if (data.icon !== undefined) payload.icon = data.icon;
+      if (data.isMandatory !== undefined) payload.is_mandatory = data.isMandatory;
+      supabase.from('contribution_rules').update(payload).eq('id', ruleId).then();
+    }
+  };
+
+  const deleteRule = (ruleId: string) => {
+    setRules((prev) => prev.filter((r) => r.id !== ruleId));
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('contribution_rules').delete().eq('id', ruleId).then();
+    }
+  };
+
+  const updateSystemRates = (rates: {
+    monthlyPerHeadRate?: number;
+    defaultJoiningFee?: number;
+  }) => {
+    if (rates.monthlyPerHeadRate !== undefined) {
+      setMonthlyPerHeadRate(rates.monthlyPerHeadRate);
+    }
+    if (rates.defaultJoiningFee !== undefined) {
+      setDefaultJoiningFee(rates.defaultJoiningFee);
+    }
+  };
+
   const addVenue = (data: {
     name: string;
     category: VenuePlace['category'];
@@ -1038,7 +1171,8 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         totalOutflow,
         pendingAuditAmount,
         pendingMemberDuesAmount,
-        monthlyPerHeadRate: MONTHLY_RATE,
+        monthlyPerHeadRate,
+        defaultJoiningFee,
         activeHeadcount,
         isAuthenticated,
         login,
@@ -1047,6 +1181,10 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         updateUserRole,
         toggleUserActive,
         deleteMember,
+        addRule,
+        updateRule,
+        deleteRule,
+        updateSystemRates,
         switchUser,
         toggleRole,
         addTransaction,

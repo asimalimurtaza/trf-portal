@@ -23,9 +23,19 @@ export function AddTreatModal({ isOpen, onClose }: AddTreatModalProps) {
   const { logTreatEvent, members, rules, currentUser } = useTRF();
 
   const [memberId, setMemberId] = useState(currentUser.id);
-  const [ruleTitle, setRuleTitle] = useState(rules[1]?.title || 'New Smartphone / Laptop Treat');
+  const [ruleTitle, setRuleTitle] = useState('');
   const [details, setDetails] = useState('');
   const [amount, setAmount] = useState('3000');
+
+  React.useEffect(() => {
+    if (isOpen && rules.length > 0) {
+      const defaultRule = rules[1] || rules[0];
+      setRuleTitle(defaultRule.title);
+      setAmount(defaultRule.suggestedAmount.toString());
+      setMemberId(currentUser.id);
+      setDetails('');
+    }
+  }, [isOpen, rules, currentUser.id]);
 
   const handleRuleChange = (title: string) => {
     setRuleTitle(title);
