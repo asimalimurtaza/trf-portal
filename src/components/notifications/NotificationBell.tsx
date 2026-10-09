@@ -18,6 +18,7 @@ import {
   ExternalLink,
   Inbox,
   X,
+  MessageSquare,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -35,6 +36,8 @@ function getNotificationIcon(type: NotificationType) {
       return <Compass className="h-4 w-4 text-sky-500" />;
     case 'claim':
       return <FileCheck2 className="h-4 w-4 text-emerald-500" />;
+    case 'message':
+      return <MessageSquare className="h-4 w-4 text-indigo-500" />;
     case 'system':
     default:
       return <Sparkles className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />;

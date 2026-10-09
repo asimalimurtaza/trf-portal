@@ -14,6 +14,7 @@ import {
   Sun,
   Moon,
   Menu,
+  MessageSquare,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { NavTab } from "./Sidebar";
@@ -35,7 +36,7 @@ export function Navbar({
   onToggleSidebar,
   onNavigateTab,
 }: NavbarProps) {
-  const { currentUser, isManager, currentBalance, logout } = useTRF();
+  const { currentUser, isManager, currentBalance, unreadDirectMessagesCount, logout } = useTRF();
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -66,6 +67,23 @@ export function Navbar({
 
         {/* Right Actions & Account */}
         <div className="flex items-center gap-2">
+          {/* 1-on-1 Direct Messages */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onNavigateTab?.("messages")}
+            className="relative text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+            title="Direct Messages"
+            aria-label="Direct Messages"
+          >
+            <MessageSquare className="h-4 w-4" />
+            {unreadDirectMessagesCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-blue-600 text-[9px] font-bold text-white shadow-xs leading-none">
+                {unreadDirectMessagesCount > 9 ? "9+" : unreadDirectMessagesCount}
+              </span>
+            )}
+          </Button>
+
           {/* In-App Notifications Center */}
           <NotificationBell onNavigateTab={onNavigateTab} />
 

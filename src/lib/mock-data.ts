@@ -5,7 +5,8 @@ import {
   ContributionRule, 
   MemberTreatEvent, 
   VenuePlace, 
-  PlannedActivity 
+  PlannedActivity,
+  DirectMessage,
 } from '@/types/trf';
 
 export const INITIAL_MEMBERS: UserProfile[] = [
@@ -755,3 +756,47 @@ export const INITIAL_PLANNED_ACTIVITIES: PlannedActivity[] = [
     ],
   },
 ];
+
+export const INITIAL_DIRECT_MESSAGES: DirectMessage[] = [
+  {
+    id: 'dm-1',
+    senderId: 'user-2', // Zainab Malik
+    receiverId: 'user-1', // Asim Khan
+    content: 'Hey Asim! Are we on track for the October Roasters dinner this Friday?',
+    isRead: true,
+    createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
+  },
+  {
+    id: 'dm-2',
+    senderId: 'user-1', // Asim Khan
+    receiverId: 'user-2', // Zainab Malik
+    content: 'Yes Zainab! Budget of 12,000 PKR is allocated from TRF pool. Everyone is super excited!',
+    isRead: true,
+    createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+  },
+  {
+    id: 'dm-3',
+    senderId: 'user-2', // Zainab Malik
+    receiverId: 'user-1', // Asim Khan
+    content: 'Awesome! Also, I have a treat pending for my promotion, will settle with TRF funds tomorrow 🎉',
+    isRead: false,
+    createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+  },
+  {
+    id: 'dm-4',
+    senderId: 'user-3', // Bilal Ahmed
+    receiverId: 'user-1', // Asim Khan
+    content: 'Assalam o Alaikum Asim, I just submitted my treat contribution receipt for the new laptop rule.',
+    isRead: false,
+    createdAt: new Date(Date.now() - 3600000 * 1).toISOString(),
+  },
+  {
+    id: 'dm-5',
+    senderId: 'user-4', // Hamza Tariq
+    receiverId: 'user-1', // Asim Khan
+    content: 'Hey Asim, could you check my RSVP for the gaming arcade outing?',
+    isRead: true,
+    createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
+  },
+];
+

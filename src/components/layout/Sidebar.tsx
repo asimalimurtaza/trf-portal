@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   Sun,
   Moon,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
@@ -26,7 +27,8 @@ export type NavTab =
   | "birthdays"
   | "activities-venues"
   | "rules-treats"
-  | "members";
+  | "members"
+  | "messages";
 
 interface SidebarProps {
   activeTab: NavTab;
@@ -43,7 +45,7 @@ export function Sidebar({
   onToggleCollapse,
   onOpenProfile,
 }: SidebarProps) {
-  const { currentUser, isManager } = useTRF();
+  const { currentUser, isManager, unreadDirectMessagesCount } = useTRF();
   const { theme, toggleTheme } = useTheme();
   const [isHovered, setIsHovered] = useState(false);
 
@@ -54,6 +56,7 @@ export function Sidebar({
     id: NavTab;
     label: string;
     icon: React.ElementType;
+    badge?: number;
   }[] = [
     { id: "overview", label: "Dashboard", icon: LayoutDashboard },
     { id: "ledger", label: "Funds Ledger", icon: Receipt },
@@ -62,6 +65,7 @@ export function Sidebar({
     { id: "activities-venues", label: "Places & Outings", icon: Compass },
     { id: "rules-treats", label: "Treats & Rules", icon: Gift },
     { id: "members", label: "Team & Fees", icon: Users },
+    { id: "messages", label: "Direct Messages", icon: MessageSquare, badge: unreadDirectMessagesCount },
   ];
 
   return (
@@ -126,12 +130,26 @@ export function Sidebar({
                     : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-50"
                 }`}
               >
-                <Icon
-                  className={`h-4 w-4 shrink-0 ${
-                    isActive ? "text-zinc-900 dark:text-zinc-50" : "text-zinc-500"
-                  }`}
-                />
-                {isExpanded && <span className="truncate">{item.label}</span>}
+                <div className="relative">
+                  <Icon
+                    className={`h-4 w-4 shrink-0 ${
+                      isActive ? "text-zinc-900 dark:text-zinc-50" : "text-zinc-500"
+                    }`}
+                  />
+                  {!isExpanded && item.badge !== undefined && item.badge > 0 && (
+                    <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-blue-600 ring-2 ring-white dark:ring-zinc-950" />
+                  )}
+                </div>
+                {isExpanded && (
+                  <div className="flex-1 flex items-center justify-between min-w-0">
+                    <span className="truncate">{item.label}</span>
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <span className="ml-auto inline-flex items-center justify-center rounded-full bg-blue-600 text-white text-[10px] font-bold h-4 min-w-4 px-1 leading-none shadow-xs">
+                        {item.badge > 9 ? "9+" : item.badge}
+                      </span>
+                    )}
+                  </div>
+                )}
               </button>
             );
           })}

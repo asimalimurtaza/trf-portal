@@ -12,6 +12,7 @@ import { BirthdaysView } from '@/components/sections/BirthdaysView';
 import { ActivitiesVenuesView } from '@/components/sections/ActivitiesVenuesView';
 import { RulesTreatsView } from '@/components/sections/RulesTreatsView';
 import { MembersView } from '@/components/sections/MembersView';
+import { DirectMessagesView } from '@/components/chat/DirectMessagesView';
 
 // Modals
 import { AddTransactionModal } from '@/components/modals/AddTransactionModal';
@@ -31,11 +32,12 @@ import {
   Cake, 
   Compass, 
   Gift, 
-  Users 
+  Users,
+  MessageSquare,
 } from 'lucide-react';
 
 function DashboardContent() {
-  const { isAuthenticated } = useTRF();
+  const { isAuthenticated, setActiveChatUserId, unreadDirectMessagesCount } = useTRF();
   const [activeTab, setActiveTab] = useState<NavTab>('overview');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -157,7 +159,15 @@ function DashboardContent() {
           {activeTab === 'members' && (
             <MembersView
               onOpenAddMember={() => setIsMemberModalOpen(true)}
+              onOpenChat={(partnerId) => {
+                setActiveChatUserId(partnerId);
+                handleTabChange('messages');
+              }}
             />
+          )}
+
+          {activeTab === 'messages' && (
+            <DirectMessagesView />
           )}
         </main>
       </div>
@@ -240,6 +250,22 @@ function DashboardContent() {
         >
           <Users className="h-4 w-4" />
           <span>Team</span>
+        </button>
+        <button
+          onClick={() => handleTabChange('messages')}
+          className={`relative flex flex-col items-center py-1 px-2 rounded-md text-[10px] font-medium transition-colors ${
+            activeTab === 'messages'
+              ? 'text-foreground font-semibold'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <div className="relative">
+            <MessageSquare className="h-4 w-4" />
+            {unreadDirectMessagesCount > 0 && (
+              <span className="absolute -top-1 -right-1.5 h-2 w-2 rounded-full bg-blue-600 ring-1 ring-background" />
+            )}
+          </div>
+          <span>Chat</span>
         </button>
       </div>
 

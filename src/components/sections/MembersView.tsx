@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useTRF } from '@/context/TRFContext';
 import { formatDate } from '@/lib/utils';
-import { UserPlus, Check, Clock, Search, ShieldCheck, User, ShieldAlert, Trash2 } from 'lucide-react';
+import { UserPlus, Check, Clock, Search, ShieldCheck, User, ShieldAlert, Trash2, MessageSquare } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,9 +21,10 @@ import { motion } from 'framer-motion';
 
 interface MembersViewProps {
   onOpenAddMember: () => void;
+  onOpenChat?: (memberId: string) => void;
 }
 
-export function MembersView({ onOpenAddMember }: MembersViewProps) {
+export function MembersView({ onOpenAddMember, onOpenChat }: MembersViewProps) {
   const {
     members,
     transactions,
@@ -147,13 +148,13 @@ export function MembersView({ onOpenAddMember }: MembersViewProps) {
                 <TableHead>RBAC Role</TableHead>
                 <TableHead>Birthday</TableHead>
                 <TableHead>Joining Fee (PKR 1,000)</TableHead>
-                {isManager && <TableHead className="text-right">Actions</TableHead>}
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredMembers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={isManager ? 6 : 5} className="h-24 text-center text-xs text-zinc-500">
+                  <TableCell colSpan={6} className="h-24 text-center text-xs text-zinc-500">
                     No matching users found.
                   </TableCell>
                 </TableRow>
@@ -297,37 +298,54 @@ export function MembersView({ onOpenAddMember }: MembersViewProps) {
                         </div>
                       </TableCell>
 
-                      {/* Actions (Manager only) */}
-                      {isManager && (
-                        <TableCell className="text-right whitespace-nowrap">
-                          {!isCurrentUser && (
-                            <div className="flex items-center justify-end gap-1">
+                      {/* Actions */}
+                      <TableCell className="text-right whitespace-nowrap">
+                        {!isCurrentUser ? (
+                          <div className="flex items-center justify-end gap-1">
+                            {onOpenChat && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 text-xs"
-                                onClick={() => toggleUserActive(member.id)}
+                                className="h-7 px-2 text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 gap-1"
+                                onClick={() => onOpenChat(member.id)}
+                                title={`Message ${member.name}`}
                               >
-                                {member.isActive ? 'Deactivate' : 'Activate'}
+                                <MessageSquare className="h-3.5 w-3.5 text-zinc-500" />
+                                <span className="hidden sm:inline">Message</span>
                               </Button>
+                            )}
 
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-zinc-400 hover:text-red-600"
-                                onClick={() => {
-                                  if (confirm(`Remove ${member.name} from team portal?`)) {
-                                    deleteMember(member.id);
-                                  }
-                                }}
-                                title="Delete user"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          )}
-                        </TableCell>
-                      )}
+                            {isManager && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  onClick={() => toggleUserActive(member.id)}
+                                >
+                                  {member.isActive ? 'Deactivate' : 'Activate'}
+                                </Button>
+
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-zinc-400 hover:text-red-600"
+                                  onClick={() => {
+                                    if (confirm(`Remove ${member.name} from team portal?`)) {
+                                      deleteMember(member.id);
+                                    }
+                                  }}
+                                  title="Delete user"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-zinc-400 italic pr-2">Your profile</span>
+                        )}
+                      </TableCell>
                     </TableRow>
                   );
                 })

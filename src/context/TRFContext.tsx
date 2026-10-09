@@ -14,6 +14,7 @@ import {
   InAppNotification,
   NotificationType,
   NotificationTargetTab,
+  DirectMessage,
 } from '@/types/trf';
 import {
   INITIAL_MEMBERS,
@@ -23,6 +24,7 @@ import {
   INITIAL_TREAT_EVENTS,
   INITIAL_VENUES,
   INITIAL_PLANNED_ACTIVITIES,
+  INITIAL_DIRECT_MESSAGES,
 } from '@/lib/mock-data';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { getBirthdayCountdown, formatPKR, formatDate } from '@/lib/utils';
@@ -40,6 +42,14 @@ interface TRFContextType {
   plannedActivities: PlannedActivity[];
   isSupabaseLive: boolean;
   
+  // Direct Messages
+  directMessages: DirectMessage[];
+  activeChatUserId: string | null;
+  setActiveChatUserId: (userId: string | null) => void;
+  sendDirectMessage: (receiverId: string, content: string) => Promise<{ success: boolean; error?: string }>;
+  markDirectMessagesAsRead: (partnerId: string) => Promise<void>;
+  unreadDirectMessagesCount: number;
+
   // In-App Notifications
   notifications: InAppNotification[];
   unreadNotificationsCount: number;
@@ -263,6 +273,18 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     return [];
   });
 
+  const DM_STORAGE_KEY = 'trf_direct_messages_v1';
+  const [directMessages, setDirectMessages] = useState<DirectMessage[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(DM_STORAGE_KEY);
+        if (saved) return JSON.parse(saved);
+      } catch {}
+    }
+    return INITIAL_DIRECT_MESSAGES;
+  });
+  const [activeChatUserId, setActiveChatUserId] = useState<string | null>(null);
+
   // 1. Initial Load: LocalStorage & Supabase Hydration
   useEffect(() => {
     async function loadData() {
@@ -308,6 +330,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
               rulesRes,
               treatsRes,
               activitiesRes,
+              dmsRes,
             ] = await Promise.all([
               supabase.from('audit_claims').select('*').order('created_at', { ascending: false }),
               supabase.from('transactions').select('*').order('date', { ascending: false }),
@@ -316,6 +339,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
               supabase.from('contribution_rules').select('*'),
               supabase.from('member_treat_events').select('*').order('date', { ascending: false }),
               supabase.from('planned_activities').select('*').order('date', { ascending: false }),
+              supabase.from('direct_messages').select('*').order('created_at', { ascending: true }),
             ]);
 
             // 1. Transactions
@@ -493,6 +517,19 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
               setPlannedActivities(mappedActivities);
             }
 
+            // 8. Direct Messages
+            if (dmsRes.data && dmsRes.data.length > 0) {
+              const mappedDMs: DirectMessage[] = dmsRes.data.map((d) => ({
+                id: d.id,
+                senderId: d.sender_id,
+                receiverId: d.receiver_id,
+                content: d.content,
+                isRead: Boolean(d.is_read),
+                createdAt: d.created_at,
+              }));
+              setDirectMessages(mappedDMs);
+            }
+
             setIsSupabaseLive(true);
           } catch (err) {
             console.log('Supabase sync note:', err);
@@ -569,6 +606,89 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       console.warn('Failed to save notifications to storage:', e);
     }
   }, [isLoaded, notifications]);
+
+  // Save direct messages to localStorage
+  useEffect(() => {
+    if (!isLoaded) return;
+    try {
+      localStorage.setItem(DM_STORAGE_KEY, JSON.stringify(directMessages));
+    } catch (e) {
+      console.warn('Failed to save direct messages to storage:', e);
+    }
+  }, [isLoaded, directMessages]);
+
+  // Supabase Realtime for Direct Messages
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    const channel = supabase
+      .channel('trf_direct_messages_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'direct_messages',
+        },
+        (payload) => {
+          const row = payload.new;
+          if (!row) return;
+
+          const incomingMsg: DirectMessage = {
+            id: row.id,
+            senderId: row.sender_id,
+            receiverId: row.receiver_id,
+            content: row.content,
+            isRead: Boolean(row.is_read),
+            createdAt: row.created_at,
+          };
+
+          setDirectMessages((prev) => {
+            if (prev.some((m) => m.id === incomingMsg.id)) return prev;
+            return [...prev, incomingMsg];
+          });
+
+          // Trigger in-app notification if message is addressed to currentUser
+          if (incomingMsg.receiverId === currentUser.id && incomingMsg.senderId !== currentUser.id) {
+            const senderObj = members.find((m) => m.id === incomingMsg.senderId);
+            addNotification({
+              title: `New Message from ${senderObj?.name || 'Teammate'}`,
+              message:
+                incomingMsg.content.length > 60
+                  ? incomingMsg.content.substring(0, 60) + '...'
+                  : incomingMsg.content,
+              type: 'message',
+              targetTab: 'messages',
+              actionLabel: 'Open Chat',
+            });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'direct_messages',
+        },
+        (payload) => {
+          const row = payload.new;
+          if (!row) return;
+          setDirectMessages((prev) =>
+            prev.map((m) =>
+              m.id === row.id ? { ...m, isRead: Boolean(row.is_read) } : m
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (supabase) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [isSupabaseConfigured, currentUser.id, members]);
 
   // Dynamic system notifications synchronization
   useEffect(() => {
@@ -706,6 +826,74 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
   };
 
   const unreadNotificationsCount = notifications.filter((n) => !n.isRead).length;
+
+  // Direct Messaging Methods
+  const sendDirectMessage = async (
+    receiverId: string,
+    content: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    if (!content || !content.trim()) {
+      return { success: false, error: 'Message cannot be empty.' };
+    }
+
+    const trimmed = content.trim();
+    const newMsg: DirectMessage = {
+      id: `dm-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      senderId: currentUser.id,
+      receiverId,
+      content: trimmed,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+    };
+
+    setDirectMessages((prev) => [...prev, newMsg]);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { error } = await supabase.from('direct_messages').insert([
+          {
+            sender_id: currentUser.id,
+            receiver_id: receiverId,
+            content: trimmed,
+            is_read: false,
+          },
+        ]);
+        if (error) {
+          console.warn('Supabase DM insert note:', error);
+        }
+      } catch (err) {
+        console.warn('Supabase DM sync error:', err);
+      }
+    }
+
+    return { success: true };
+  };
+
+  const markDirectMessagesAsRead = async (partnerId: string): Promise<void> => {
+    setDirectMessages((prev) =>
+      prev.map((m) =>
+        m.senderId === partnerId && m.receiverId === currentUser.id && !m.isRead
+          ? { ...m, isRead: true }
+          : m
+      )
+    );
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase
+          .from('direct_messages')
+          .update({ is_read: true })
+          .eq('sender_id', partnerId)
+          .eq('receiver_id', currentUser.id);
+      } catch (e) {
+        console.warn('Supabase mark read DM note:', e);
+      }
+    }
+  };
+
+  const unreadDirectMessagesCount = directMessages.filter(
+    (m) => m.receiverId === currentUser.id && !m.isRead
+  ).length;
 
   // Authentication Methods
   const login = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
@@ -1898,8 +2086,10 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     setTreatEvents(INITIAL_TREAT_EVENTS);
     setVenues(INITIAL_VENUES);
     setPlannedActivities(INITIAL_PLANNED_ACTIVITIES);
+    setDirectMessages(INITIAL_DIRECT_MESSAGES);
     setCurrentUserId('user-1');
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(DM_STORAGE_KEY);
   };
 
   return (
@@ -1958,6 +2148,13 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         completePlannedActivity,
         deletePlannedActivity,
         updateRSVP,
+        // Direct Messages
+        directMessages,
+        activeChatUserId,
+        setActiveChatUserId,
+        sendDirectMessage,
+        markDirectMessagesAsRead,
+        unreadDirectMessagesCount,
         // Notifications
         notifications,
         unreadNotificationsCount,

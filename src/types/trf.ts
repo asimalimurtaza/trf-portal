@@ -129,7 +129,7 @@ export interface TRFOverviewStats {
   pendingMemberDuesAmount: number;
 }
 
-export type NotificationType = 'due' | 'birthday' | 'outing' | 'claim' | 'system';
+export type NotificationType = 'due' | 'birthday' | 'outing' | 'claim' | 'system' | 'message';
 
 export type NotificationTargetTab =
   | 'overview'
@@ -138,7 +138,8 @@ export type NotificationTargetTab =
   | 'birthdays'
   | 'activities-venues'
   | 'rules-treats'
-  | 'members';
+  | 'members'
+  | 'messages';
 
 export interface InAppNotification {
   id: string;
@@ -149,4 +150,13 @@ export interface InAppNotification {
   isRead: boolean;
   targetTab?: NotificationTargetTab;
   actionLabel?: string;
+}
+
+export interface DirectMessage {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  content: string;
+  isRead: boolean;
+  createdAt: string; // ISO format
 }

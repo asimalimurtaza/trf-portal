@@ -206,3 +206,30 @@ create policy "Users can log treat events"
 create policy "Users can RSVP to activities" 
   on public.activity_rsvps for all to authenticated
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- 10. Direct Messages (1-on-1 In-App Team Chat)
+create table if not exists public.direct_messages (
+  id uuid default gen_random_uuid() primary key,
+  sender_id uuid references public.profiles(id) on delete cascade not null,
+  receiver_id uuid references public.profiles(id) on delete cascade not null,
+  content text not null,
+  is_read boolean default false not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+create index if not exists idx_direct_messages_participants on public.direct_messages(sender_id, receiver_id);
+create index if not exists idx_direct_messages_created_at on public.direct_messages(created_at);
+
+alter table public.direct_messages enable row level security;
+
+create policy "Allow participants to read direct messages" 
+  on public.direct_messages for select to authenticated
+  using (auth.uid() = sender_id or auth.uid() = receiver_id);
+
+create policy "Allow sender to insert direct messages" 
+  on public.direct_messages for insert to authenticated
+  with check (auth.uid() = sender_id);
+
+create policy "Allow receiver to update read status" 
+  on public.direct_messages for update to authenticated
+  using (auth.uid() = receiver_id);
