@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Trash2 } from 'lucide-react';
+import { Trash2, AlertTriangle, Users } from 'lucide-react';
 
 interface EditActivityModalProps {
   activity: PlannedActivity | null;
@@ -24,7 +24,15 @@ interface EditActivityModalProps {
 }
 
 export function EditActivityModal({ activity, isOpen, onClose }: EditActivityModalProps) {
-  const { updatePlannedActivity, deletePlannedActivity, isManager, activeHeadcount, venues } = useTRF();
+  const {
+    updatePlannedActivity,
+    completePlannedActivity,
+    deletePlannedActivity,
+    isManager,
+    activeHeadcount,
+    currentBalance,
+    venues,
+  } = useTRF();
 
   const [title, setTitle] = useState('');
   const [venueName, setVenueName] = useState('');
@@ -33,6 +41,7 @@ export function EditActivityModal({ activity, isOpen, onClose }: EditActivityMod
   const [estimatedTotalBudget, setEstimatedTotalBudget] = useState('15000');
   const [trfContributionShare, setTrfContributionShare] = useState('10000');
   const [status, setStatus] = useState<PlannedActivity['status']>('voting');
+  const [splitDeficit, setSplitDeficit] = useState(true);
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -61,16 +70,31 @@ export function EditActivityModal({ activity, isOpen, onClose }: EditActivityMod
     if (!title.trim() || !venueName.trim() || !date) return;
 
     setIsSubmitting(true);
-    await updatePlannedActivity(activity.id, {
-      title: title.trim(),
-      venueName: venueName.trim(),
-      date,
-      time: time.trim() || '7:30 PM',
-      estimatedTotalBudget: totalBill,
-      trfContributionShare: trfShare,
-      status,
-      description: description.trim(),
-    });
+    if (status === 'completed' && activity.status !== 'completed') {
+      await completePlannedActivity({
+        activityId: activity.id,
+        finalBillAmount: totalBill,
+        splitShortfallWithMembers: totalBill > currentBalance ? splitDeficit : false,
+      });
+      await updatePlannedActivity(activity.id, {
+        title: title.trim(),
+        venueName: venueName.trim(),
+        date,
+        time: time.trim() || '7:30 PM',
+        description: description.trim(),
+      });
+    } else {
+      await updatePlannedActivity(activity.id, {
+        title: title.trim(),
+        venueName: venueName.trim(),
+        date,
+        time: time.trim() || '7:30 PM',
+        estimatedTotalBudget: totalBill,
+        trfContributionShare: trfShare,
+        status,
+        description: description.trim(),
+      });
+    }
     setIsSubmitting(false);
     onClose();
   };
@@ -222,6 +246,47 @@ export function EditActivityModal({ activity, isOpen, onClose }: EditActivityMod
               <option value="completed" className="bg-background">Completed</option>
               <option value="cancelled" className="bg-background">Cancelled</option>
             </select>
+
+            {status === 'completed' && activity.status !== 'completed' && (
+              <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2 mt-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Available TRF Pool:</span>
+                  <span className="font-semibold">{formatPKR(currentBalance)}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Bill To Deduct:</span>
+                  <span className="font-semibold text-red-600 dark:text-red-400">-{formatPKR(totalBill)}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs font-mono font-medium pt-1.5 border-t border-border">
+                  <span>Projected Pool:</span>
+                  <span className={currentBalance - totalBill < 0 ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-emerald-600 dark:text-emerald-400 font-bold'}>
+                    {formatPKR(currentBalance - totalBill)}
+                  </span>
+                </div>
+
+                {totalBill > currentBalance && (
+                  <div className="pt-2 border-t border-amber-200 dark:border-amber-900/40">
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={splitDeficit}
+                        onChange={(e) => setSplitDeficit(e.target.checked)}
+                        className="mt-0.5 rounded border-amber-400 text-primary"
+                      />
+                      <div className="text-[11px]">
+                        <span className="font-medium text-amber-900 dark:text-amber-200">
+                          Equally divide remaining {formatPKR(totalBill - currentBalance)} across all {Math.max(1, activeHeadcount)} members
+                        </span>
+                        <div className="text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <Users className="h-3 w-3" />
+                          <span>{formatPKR(Math.ceil((totalBill - currentBalance) / Math.max(1, activeHeadcount)))} / member will be logged as pending due</span>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="space-y-1.5">

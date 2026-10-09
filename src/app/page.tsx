@@ -47,9 +47,13 @@ function DashboardContent() {
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  // Restore sidebar state preference from localStorage
+  // Restore sidebar state and active tab preference from localStorage
   useEffect(() => {
     try {
+      const savedTab = localStorage.getItem('trf_active_tab') as NavTab;
+      if (savedTab && ['overview', 'funds', 'claims', 'birthdays', 'activities', 'rules', 'members'].includes(savedTab)) {
+        setActiveTab(savedTab);
+      }
       const saved = localStorage.getItem('trf_sidebar_collapsed');
       if (saved !== null) {
         setIsSidebarCollapsed(saved === 'true');
@@ -58,6 +62,13 @@ function DashboardContent() {
       // ignore
     }
   }, []);
+
+  const handleTabChange = (tab: NavTab) => {
+    setActiveTab(tab);
+    try {
+      localStorage.setItem('trf_active_tab', tab);
+    } catch {}
+  };
 
   const toggleSidebarCollapse = () => {
     setIsSidebarCollapsed((prev) => {
@@ -80,7 +91,7 @@ function DashboardContent() {
       {/* 1. Fixed Sidebar Component */}
       <Sidebar
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={toggleSidebarCollapse}
         onOpenProfile={() => setIsProfileModalOpen(true)}
@@ -105,7 +116,7 @@ function DashboardContent() {
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto pb-24 md:pb-12">
           {activeTab === 'overview' && (
             <OverviewView
-              onNavigateTab={setActiveTab}
+              onNavigateTab={handleTabChange}
               onOpenNewTransaction={() => setIsTransactionModalOpen(true)}
               onOpenNewClaim={() => setIsClaimModalOpen(true)}
               onOpenNewTreat={() => setIsTreatModalOpen(true)}
@@ -153,7 +164,7 @@ function DashboardContent() {
       {/* Mobile Bottom Navigation Bar (Minimalist Shadcn Neutral) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/95 border-t border-border backdrop-blur-md px-2 py-1.5 flex items-center justify-around">
         <button
-          onClick={() => setActiveTab('overview')}
+          onClick={() => handleTabChange('overview')}
           className={`flex flex-col items-center py-1 px-2 rounded-md text-[10px] font-medium transition-colors ${
             activeTab === 'overview'
               ? 'text-foreground font-semibold'
@@ -164,7 +175,7 @@ function DashboardContent() {
           <span>Home</span>
         </button>
         <button
-          onClick={() => setActiveTab('ledger')}
+          onClick={() => handleTabChange('ledger')}
           className={`flex flex-col items-center py-1 px-2 rounded-md text-[10px] font-medium transition-colors ${
             activeTab === 'ledger'
               ? 'text-foreground font-semibold'
@@ -175,7 +186,7 @@ function DashboardContent() {
           <span>Ledger</span>
         </button>
         <button
-          onClick={() => setActiveTab('audit-claims')}
+          onClick={() => handleTabChange('audit-claims')}
           className={`flex flex-col items-center py-1 px-2 rounded-md text-[10px] font-medium transition-colors ${
             activeTab === 'audit-claims'
               ? 'text-foreground font-semibold'
@@ -186,7 +197,7 @@ function DashboardContent() {
           <span>Claims</span>
         </button>
         <button
-          onClick={() => setActiveTab('birthdays')}
+          onClick={() => handleTabChange('birthdays')}
           className={`flex flex-col items-center py-1 px-2 rounded-md text-[10px] font-medium transition-colors ${
             activeTab === 'birthdays'
               ? 'text-foreground font-semibold'
@@ -197,7 +208,7 @@ function DashboardContent() {
           <span>Birthdays</span>
         </button>
         <button
-          onClick={() => setActiveTab('activities-venues')}
+          onClick={() => handleTabChange('activities-venues')}
           className={`flex flex-col items-center py-1 px-2 rounded-md text-[10px] font-medium transition-colors ${
             activeTab === 'activities-venues'
               ? 'text-foreground font-semibold'
@@ -208,7 +219,7 @@ function DashboardContent() {
           <span>Venues</span>
         </button>
         <button
-          onClick={() => setActiveTab('rules-treats')}
+          onClick={() => handleTabChange('rules-treats')}
           className={`flex flex-col items-center py-1 px-2 rounded-md text-[10px] font-medium transition-colors ${
             activeTab === 'rules-treats'
               ? 'text-foreground font-semibold'
@@ -219,7 +230,7 @@ function DashboardContent() {
           <span>Treats</span>
         </button>
         <button
-          onClick={() => setActiveTab('members')}
+          onClick={() => handleTabChange('members')}
           className={`flex flex-col items-center py-1 px-2 rounded-md text-[10px] font-medium transition-colors ${
             activeTab === 'members'
               ? 'text-foreground font-semibold'

@@ -11,6 +11,7 @@ import {
   Users,
   Edit2,
   Trash2,
+  CheckCircle2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { EditVenueModal } from '@/components/modals/EditVenueModal';
 import { EditActivityModal } from '@/components/modals/EditActivityModal';
+import { CompleteOutingModal } from '@/components/modals/CompleteOutingModal';
 import { VenuePlace, PlannedActivity } from '@/types/trf';
 import { motion } from 'framer-motion';
 
@@ -52,6 +54,7 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
   const [showPlanActivityModal, setShowPlanActivityModal] = useState(false);
   const [editingVenue, setEditingVenue] = useState<VenuePlace | null>(null);
   const [editingActivity, setEditingActivity] = useState<PlannedActivity | null>(null);
+  const [completingActivity, setCompletingActivity] = useState<PlannedActivity | null>(null);
 
   // New Outing Form State
   const [actTitle, setActTitle] = useState('');
@@ -250,13 +253,40 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
                           {act.venueName}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {act.status === 'completed' ? (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/20 dark:text-emerald-300 dark:border-emerald-800 gap-1">
+                              <CheckCircle2 className="h-3 w-3" />
+                              <span>Settled ({formatPKR(act.actualBillAmount || act.estimatedTotalBudget)})</span>
+                            </Badge>
+                            {act.shortfallPerHead && (
+                              <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/20 dark:text-amber-300 dark:border-amber-800">
+                                Deficit Split: {formatPKR(act.shortfallPerHead)}/head
+                              </Badge>
+                            )}
+                          </div>
+                        ) : (
+                          isManager && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
+                              onClick={() => setCompletingActivity(act)}
+                              title="Mark outing completed and settle bill from TRF pool"
+                            >
+                              <CheckCircle2 className="h-3 w-3" />
+                              <span>Settle Bill</span>
+                            </Button>
+                          )
+                        )}
+
                         <span className="text-xs font-mono text-zinc-500">
                           {formatDate(act.date)} at {act.time}
                         </span>
 
                         {isManager && (
-                          <div className="flex items-center gap-1 ml-2">
+                          <div className="flex items-center gap-1 ml-1">
                             <Button
                               variant="ghost"
                               size="sm"
@@ -492,6 +522,13 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
         activity={editingActivity}
         isOpen={Boolean(editingActivity)}
         onClose={() => setEditingActivity(null)}
+      />
+
+      {/* Complete & Settle Outing Modal */}
+      <CompleteOutingModal
+        activity={completingActivity}
+        isOpen={Boolean(completingActivity)}
+        onClose={() => setCompletingActivity(null)}
       />
     </motion.div>
   );

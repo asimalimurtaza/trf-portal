@@ -13,6 +13,8 @@ import {
   SlidersHorizontal,
   Settings2,
   Search,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import {
   Card,
@@ -60,18 +62,49 @@ export function RulesTreatsView({ onOpenNewTreat }: RulesTreatsViewProps) {
   const [editingRule, setEditingRule] = useState<ContributionRule | null>(null);
   const [isAddRuleOpen, setIsAddRuleOpen] = useState(false);
   const [isRatesModalOpen, setIsRatesModalOpen] = useState(false);
+
+  // Filters, Sorting & View Mode
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'official' | 'personal'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'mandatory' | 'treat'>('all');
+  const [sortBy, setSortBy] = useState<'default' | 'amount_desc' | 'amount_asc' | 'name_asc' | 'name_desc'>('default');
   const [ruleSearch, setRuleSearch] = useState('');
 
-  const filteredRules = rules.filter((r) => {
-    if (categoryFilter === 'official' && !r.title.toLowerCase().startsWith('official')) return false;
-    if (categoryFilter === 'personal' && !r.title.toLowerCase().startsWith('personal')) return false;
-    if (ruleSearch.trim()) {
-      const q = ruleSearch.toLowerCase();
-      return r.title.toLowerCase().includes(q) || r.description.toLowerCase().includes(q);
-    }
-    return true;
-  });
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem('trf_rules_view_mode') as 'grid' | 'list';
+      if (saved === 'grid' || saved === 'list') {
+        setViewMode(saved);
+      }
+    } catch {}
+  }, []);
+
+  const handleViewModeChange = (mode: 'grid' | 'list') => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('trf_rules_view_mode', mode);
+    } catch {}
+  };
+
+  const filteredAndSortedRules = [...rules]
+    .filter((r) => {
+      if (categoryFilter === 'official' && !r.title.toLowerCase().startsWith('official')) return false;
+      if (categoryFilter === 'personal' && !r.title.toLowerCase().startsWith('personal')) return false;
+      if (typeFilter === 'mandatory' && !r.isMandatory) return false;
+      if (typeFilter === 'treat' && r.isMandatory) return false;
+      if (ruleSearch.trim()) {
+        const q = ruleSearch.toLowerCase();
+        return r.title.toLowerCase().includes(q) || r.description.toLowerCase().includes(q);
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'amount_desc') return b.suggestedAmount - a.suggestedAmount;
+      if (sortBy === 'amount_asc') return a.suggestedAmount - b.suggestedAmount;
+      if (sortBy === 'name_asc') return a.title.localeCompare(b.title);
+      if (sortBy === 'name_desc') return b.title.localeCompare(a.title);
+      return 0;
+    });
 
   const officialCount = rules.filter((r) => r.title.toLowerCase().startsWith('official')).length;
   const personalCount = rules.filter((r) => r.title.toLowerCase().startsWith('personal')).length;
@@ -144,6 +177,30 @@ export function RulesTreatsView({ onOpenNewTreat }: RulesTreatsViewProps) {
           </div>
 
           <div className="flex items-center gap-1.5 self-start sm:self-auto">
+            {/* View Mode Switcher */}
+            <div className="flex items-center gap-0.5 border border-border rounded-lg p-0.5 bg-muted/30">
+              <Button
+                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => handleViewModeChange('list')}
+                className="h-7 px-2 text-xs gap-1"
+                title="List View"
+              >
+                <List className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">List</span>
+              </Button>
+              <Button
+                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => handleViewModeChange('grid')}
+                className="h-7 px-2 text-xs gap-1"
+                title="Cards Grid View"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Grid</span>
+              </Button>
+            </div>
+
             {isManager && (
               <Button
                 variant="ghost"
@@ -158,8 +215,8 @@ export function RulesTreatsView({ onOpenNewTreat }: RulesTreatsViewProps) {
           </div>
         </div>
 
-        {/* Filter Tabs & Search */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-1">
+        {/* Filter Tabs, Type Filter, Sort & Search */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-1 flex-wrap">
           <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
             <Button
               variant={categoryFilter === 'all' ? 'secondary' : 'ghost'}
@@ -187,70 +244,194 @@ export function RulesTreatsView({ onOpenNewTreat }: RulesTreatsViewProps) {
             </Button>
           </div>
 
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
-            <Input
-              type="text"
-              value={ruleSearch}
-              onChange={(e) => setRuleSearch(e.target.value)}
-              placeholder="Search rules..."
-              className="pl-8 h-8 text-xs"
-            />
+          <div className="flex items-center gap-2 flex-1 justify-end flex-wrap">
+            <select
+              aria-label="Filter rule type"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as any)}
+              className="h-8 rounded-md border border-input bg-background px-2.5 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="all">All Rule Types</option>
+              <option value="mandatory">Mandatory Fines/Fees</option>
+              <option value="treat">Milestone Treats</option>
+            </select>
+
+            <select
+              aria-label="Sort rules"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="h-8 rounded-md border border-input bg-background px-2.5 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="default">Sort: Default</option>
+              <option value="amount_desc">Amount: High to Low</option>
+              <option value="amount_asc">Amount: Low to High</option>
+              <option value="name_asc">Name: A to Z</option>
+              <option value="name_desc">Name: Z to A</option>
+            </select>
+
+            <div className="relative w-full sm:w-56">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+              <Input
+                type="text"
+                value={ruleSearch}
+                onChange={(e) => setRuleSearch(e.target.value)}
+                placeholder="Search rules..."
+                className="pl-8 h-8 text-xs"
+              />
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {filteredRules.map((rule) => (
-            <Card key={rule.id} className="flex flex-col justify-between hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between gap-2">
-                  <Badge variant={rule.isMandatory ? 'default' : 'secondary'} className="text-[10px]">
-                    {rule.isMandatory ? 'Mandatory' : 'Milestone Treat'}
-                  </Badge>
-                  <span className="text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100">
-                    {formatPKR(rule.suggestedAmount)}
+        {/* Content: List / Table View OR Cards Grid View */}
+        {viewMode === 'list' ? (
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Occasion / Rule Title</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Rule Type</TableHead>
+                    <TableHead className="text-right">Suggested Amount</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredAndSortedRules.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center text-xs text-zinc-500">
+                        No rules found matching your filter criteria.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredAndSortedRules.map((rule) => {
+                      const isOfficial = rule.title.toLowerCase().startsWith('official');
+                      const cleanTitle = rule.title.replace(/^(Official|Personal):\s*/i, '');
+
+                      return (
+                        <TableRow key={rule.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium text-xs text-zinc-900 dark:text-zinc-100">
+                                {cleanTitle}
+                              </div>
+                              <div className="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-1">
+                                {rule.description}
+                              </div>
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] ${
+                                isOfficial
+                                  ? 'border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-300'
+                                  : 'border-purple-300 dark:border-purple-800 text-purple-700 dark:text-purple-300'
+                              }`}
+                            >
+                              {isOfficial ? 'Official' : 'Personal'}
+                            </Badge>
+                          </TableCell>
+
+                          <TableCell>
+                            <Badge variant={rule.isMandatory ? 'default' : 'secondary'} className="text-[10px]">
+                              {rule.isMandatory ? 'Mandatory' : 'Milestone Treat'}
+                            </Badge>
+                          </TableCell>
+
+                          <TableCell className="text-right font-mono font-semibold text-xs text-zinc-900 dark:text-zinc-100">
+                            {formatPKR(rule.suggestedAmount)}
+                          </TableCell>
+
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {isManager && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setEditingRule(rule)}
+                                  className="h-7 text-xs gap-1 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+                                  title="Edit rule amount"
+                                >
+                                  <Edit2 className="h-3 w-3" />
+                                  <span>Edit</span>
+                                </Button>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={onOpenNewTreat}
+                                className="h-7 text-xs gap-1"
+                                title="Declare treat"
+                              >
+                                <Plus className="h-3 w-3" />
+                                <span>Use</span>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            {filteredAndSortedRules.map((rule) => (
+              <Card key={rule.id} className="flex flex-col justify-between hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <Badge variant={rule.isMandatory ? 'default' : 'secondary'} className="text-[10px]">
+                      {rule.isMandatory ? 'Mandatory' : 'Milestone Treat'}
+                    </Badge>
+                    <span className="text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100">
+                      {formatPKR(rule.suggestedAmount)}
+                    </span>
+                  </div>
+                  <CardTitle className="text-sm mt-2">{rule.title}</CardTitle>
+                  <CardDescription className="text-xs line-clamp-2 mt-1">
+                    {rule.description}
+                  </CardDescription>
+                </CardHeader>
+
+                <CardFooter className="pt-0 flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800/60 p-3 bg-zinc-50/50 dark:bg-zinc-900/30">
+                  <span className="text-[11px] text-zinc-400 font-mono">
+                    {rule.isMandatory ? 'Fixed fine/fee' : 'Suggested treat'}
                   </span>
-                </div>
-                <CardTitle className="text-sm mt-2">{rule.title}</CardTitle>
-                <CardDescription className="text-xs line-clamp-2 mt-1">
-                  {rule.description}
-                </CardDescription>
-              </CardHeader>
 
-              <CardFooter className="pt-0 flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800/60 p-3 bg-zinc-50/50 dark:bg-zinc-900/30">
-                <span className="text-[11px] text-zinc-400 font-mono">
-                  {rule.isMandatory ? 'Fixed fine/fee' : 'Suggested treat'}
-                </span>
+                  <div className="flex items-center gap-1.5">
+                    {isManager && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingRule(rule)}
+                        className="h-7 text-xs gap-1 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+                        title="Edit rule amount and details"
+                      >
+                        <Edit2 className="h-3 w-3" />
+                        <span>Edit Amount</span>
+                      </Button>
+                    )}
 
-                <div className="flex items-center gap-1.5">
-                  {isManager && (
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setEditingRule(rule)}
-                      className="h-7 text-xs gap-1 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
-                      title="Edit rule amount and details"
+                      onClick={onOpenNewTreat}
+                      className="h-7 text-xs gap-1"
+                      title="Declare treat"
                     >
-                      <Edit2 className="h-3 w-3" />
-                      <span>Edit Amount</span>
+                      <Plus className="h-3 w-3" />
+                      <span>Use</span>
                     </Button>
-                  )}
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onOpenNewTreat}
-                    className="h-7 text-xs gap-1"
-                    title="Declare treat"
-                  >
-                    <Plus className="h-3 w-3" />
-                    <span>Use</span>
-                  </Button>
-                </div>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+                  </div>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Treat Log Table */}

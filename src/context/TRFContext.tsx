@@ -192,6 +192,11 @@ interface TRFContextType {
       description?: string;
     }
   ) => Promise<void>;
+  completePlannedActivity: (data: {
+    activityId: string;
+    finalBillAmount: number;
+    splitShortfallWithMembers?: boolean;
+  }) => Promise<{ success: boolean; shortfall?: number; perMemberShare?: number }>;
   deletePlannedActivity: (activityId: string) => Promise<void>;
   updateRSVP: (activityId: string, status: 'going' | 'maybe' | 'not_going') => void;
   triggerCelebration: () => void;
@@ -216,7 +221,16 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
   const [monthlyPerHeadRate, setMonthlyPerHeadRate] = useState<number>(DEFAULT_MONTHLY_RATE);
   const [defaultJoiningFee, setDefaultJoiningFee] = useState<number>(DEFAULT_JOINING_FEE);
   const [currentUserId, setCurrentUserId] = useState<string>('user-1');
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return localStorage.getItem('trf_is_authenticated') === 'true';
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  });
   const [isSupabaseLive, setIsSupabaseLive] = useState(isSupabaseConfigured);
 
   // 1. Initial Load: LocalStorage & Supabase Hydration
@@ -236,6 +250,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
           if (parsed.currentUserId) setCurrentUserId(parsed.currentUserId);
           if (parsed.monthlyPerHeadRate) setMonthlyPerHeadRate(Number(parsed.monthlyPerHeadRate));
           if (parsed.defaultJoiningFee) setDefaultJoiningFee(Number(parsed.defaultJoiningFee));
+          if (parsed.isAuthenticated !== undefined) setIsAuthenticated(Boolean(parsed.isAuthenticated));
         }
 
         // Direct Supabase fetch if configured (Supabase is single source of truth)
@@ -246,8 +261,14 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
             const sessionUser = sessionData?.session?.user;
             if (sessionUser) {
               setIsAuthenticated(true);
+              try {
+                localStorage.setItem('trf_is_authenticated', 'true');
+              } catch {}
             } else {
-              setIsAuthenticated(false);
+              const localAuth = localStorage.getItem('trf_is_authenticated') === 'true';
+              if (!localAuth) {
+                setIsAuthenticated(false);
+              }
             }
             const [
               claimsRes,
@@ -472,12 +493,13 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         currentUserId,
         monthlyPerHeadRate,
         defaultJoiningFee,
+        isAuthenticated,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
     } catch (e) {
       console.warn('Failed to save to local storage:', e);
     }
-  }, [isLoaded, members, claims, transactions, rules, treatEvents, venues, plannedActivities, currentUserId, monthlyPerHeadRate, defaultJoiningFee]);
+  }, [isLoaded, members, claims, transactions, rules, treatEvents, venues, plannedActivities, currentUserId, monthlyPerHeadRate, defaultJoiningFee, isAuthenticated]);
 
   const currentUser = members.find((m) => m.id === currentUserId) || members[0] || INITIAL_MEMBERS[0];
   const isManager = currentUser.role === 'manager';
@@ -533,6 +555,9 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
 
       if (data?.user && data?.session) {
         setIsAuthenticated(true);
+        try {
+          localStorage.setItem('trf_is_authenticated', 'true');
+        } catch {}
         const userEmail = data.user.email?.toLowerCase();
         const userId = data.user.id;
         const matched = members.find((m) => m.id === userId || m.email.toLowerCase() === userEmail);
@@ -1520,6 +1545,125 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const completePlannedActivity = async (data: {
+    activityId: string;
+    finalBillAmount: number;
+    splitShortfallWithMembers?: boolean;
+  }): Promise<{ success: boolean; shortfall?: number; perMemberShare?: number }> => {
+    const act = plannedActivities.find((a) => a.id === data.activityId);
+    if (!act) return { success: false };
+
+    const bill = Math.max(0, Number(data.finalBillAmount || 0));
+    const previousBalance = currentBalance;
+    const hasShortfall = bill > previousBalance;
+    const shortfall = hasShortfall ? bill - previousBalance : 0;
+
+    const activeMembers = members.filter((m) => m.isActive);
+    const memberCount = Math.max(1, activeMembers.length);
+    const perMemberShare = hasShortfall && data.splitShortfallWithMembers
+      ? Math.ceil(shortfall / memberCount)
+      : undefined;
+
+    // 1. Deduct bill amount from pool by recording an Outflow Transaction
+    const txId = `tx-outing-${Date.now()}`;
+    const today = new Date().toISOString().split('T')[0];
+    const newTx: Transaction = {
+      id: txId,
+      title: `Outing Settlement: ${act.title}`,
+      description: `Settled outing bill at ${act.venueName}. Total bill: PKR ${bill.toLocaleString()}${hasShortfall && data.splitShortfallWithMembers ? ` (Shortfall of PKR ${shortfall.toLocaleString()} split among ${memberCount} members @ PKR ${perMemberShare?.toLocaleString()}/head)` : ''}`,
+      amount: bill,
+      type: 'outflow',
+      category: 'activity_outing',
+      date: today,
+      loggedBy: currentUser.name || 'TRF Custodian',
+      createdAt: new Date().toISOString(),
+    };
+
+    setTransactions((prev) => [newTx, ...prev]);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        supabase.from('transactions').insert([{
+          id: txId,
+          title: newTx.title,
+          description: newTx.description,
+          amount: newTx.amount,
+          type: 'outflow',
+          category: 'activity_outing',
+          date: today,
+        }]).then();
+      } catch (e) {
+        console.warn('Supabase outing tx note:', e);
+      }
+    }
+
+    // 2. If shortfall and option checked, equally divide remaining amount to all members as pending dues
+    if (hasShortfall && data.splitShortfallWithMembers && perMemberShare) {
+      const newDues: MemberTreatEvent[] = activeMembers.map((m, idx) => ({
+        id: `due-outing-${Date.now()}-${idx}`,
+        memberId: m.id,
+        memberName: m.name,
+        ruleTitle: `Outing Shortfall Share: ${act.title}`,
+        details: `Shortfall recovery for ${act.venueName} (Pool was: PKR ${previousBalance.toLocaleString()}, Bill: PKR ${bill.toLocaleString()})`,
+        amount: perMemberShare,
+        date: today,
+        status: 'pending',
+      }));
+
+      setTreatEvents((prev) => [...newDues, ...prev]);
+
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const duesPayload = newDues.map((d) => ({
+            id: d.id,
+            member_id: d.memberId,
+            member_name: d.memberName,
+            rule_title: d.ruleTitle,
+            details: d.details,
+            amount: d.amount,
+            date: d.date,
+            status: 'pending',
+          }));
+          supabase.from('member_treat_events').insert(duesPayload).then();
+        } catch (e) {
+          console.warn('Supabase outing dues note:', e);
+        }
+      }
+    }
+
+    // 3. Update activity status to 'completed'
+    setPlannedActivities((prev) =>
+      prev.map((a) =>
+        a.id === data.activityId
+          ? {
+              ...a,
+              status: 'completed',
+              actualBillAmount: bill,
+              shortfallPerHead: perMemberShare,
+            }
+          : a
+      )
+    );
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        supabase.from('planned_activities').update({
+          status: 'completed',
+        }).eq('id', data.activityId).then();
+      } catch (e) {
+        console.warn('Supabase outing status note:', e);
+      }
+    }
+
+    triggerCelebration();
+
+    return {
+      success: true,
+      shortfall: hasShortfall ? shortfall : 0,
+      perMemberShare,
+    };
+  };
+
   const deletePlannedActivity = async (activityId: string) => {
     setPlannedActivities((prev) => prev.filter((act) => act.id !== activityId));
     if (isSupabaseConfigured && supabase) {
@@ -1610,6 +1754,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         toggleVenueVote,
         createPlannedActivity,
         updatePlannedActivity,
+        completePlannedActivity,
         deletePlannedActivity,
         updateRSVP,
         triggerCelebration,

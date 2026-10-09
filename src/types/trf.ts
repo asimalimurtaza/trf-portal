@@ -108,6 +108,8 @@ export interface PlannedActivity {
   trfContributionShare: number; // PKR covered by TRF
   personalContributionPerHead: number; // PKR balance per head
   status: 'voting' | 'confirmed' | 'completed' | 'cancelled';
+  actualBillAmount?: number; // PKR final settled bill
+  shortfallPerHead?: number; // PKR split amount per member if deficit
   rsvps: {
     userId: string;
     userName: string;
