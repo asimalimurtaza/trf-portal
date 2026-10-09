@@ -45,6 +45,19 @@ interface TRFContextType {
   monthlyPerHeadRate: number; // 1400
   activeHeadcount: number;
 
+  // Authentication & Session
+  isAuthenticated: boolean;
+  login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+
+  // Profile Management
+  updateProfile: (userId: string, data: Partial<Omit<UserProfile, 'id' | 'role'>>) => Promise<void>;
+
+  // RBAC & User Management (Manager only)
+  updateUserRole: (userId: string, newRole: 'manager' | 'member') => Promise<void>;
+  toggleUserActive: (userId: string) => Promise<void>;
+  deleteMember: (userId: string) => Promise<void>;
+
   // Actions
   switchUser: (userId: string) => void;
   toggleRole: () => void;
@@ -73,8 +86,9 @@ interface TRFContextType {
     designation: string;
     birthDate: string;
     phone?: string;
+    password?: string;
     joiningFeeAmount?: number;
-  }) => void;
+  }) => Promise<{ success: boolean; error?: string }>;
   updateMemberJoiningFee: (memberId: string, status: 'paid' | 'pending' | 'waived') => void;
   logTreatEvent: (data: {
     memberId: string;
@@ -121,6 +135,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
   const [venues, setVenues] = useState<VenuePlace[]>(INITIAL_VENUES);
   const [plannedActivities, setPlannedActivities] = useState<PlannedActivity[]>(INITIAL_PLANNED_ACTIVITIES);
   const [currentUserId, setCurrentUserId] = useState<string>('user-1'); // Default Asim Khan (Manager)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [isSupabaseLive, setIsSupabaseLive] = useState(isSupabaseConfigured);
 
   // 1. Initial Load: LocalStorage & Supabase Hydration
@@ -140,14 +155,39 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
           if (parsed.currentUserId) setCurrentUserId(parsed.currentUserId);
         }
 
+        const savedAuth = localStorage.getItem('trf_is_authenticated');
+        if (savedAuth !== null) {
+          setIsAuthenticated(savedAuth === 'true');
+        }
+
         // Try Supabase fetch if configured
         if (isSupabaseConfigured && supabase) {
           try {
-            const [claimsRes, txRes, venuesRes] = await Promise.all([
+            const [claimsRes, txRes, venuesRes, profilesRes] = await Promise.all([
               supabase.from('audit_claims').select('*'),
               supabase.from('transactions').select('*'),
               supabase.from('venues').select('*'),
+              supabase.from('profiles').select('*'),
             ]);
+
+            if (profilesRes.data && profilesRes.data.length > 0) {
+              const mappedProfiles: UserProfile[] = profilesRes.data.map((p) => ({
+                id: p.id,
+                name: p.name,
+                email: p.email,
+                role: p.role,
+                avatarUrl: p.avatar_url || `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100`,
+                department: p.department || 'Engineering',
+                designation: p.designation || 'Team Member',
+                joiningDate: p.joining_date || new Date().toISOString().split('T')[0],
+                birthDate: p.birth_date || '2000-01-01',
+                joiningFeeStatus: p.joining_fee_status || 'pending',
+                joiningFeeAmount: Number(p.joining_fee_amount || 1000),
+                phone: p.phone,
+                isActive: p.is_active ?? true,
+              }));
+              setMembers(mappedProfiles);
+            }
 
             if (claimsRes.data && claimsRes.data.length > 0) {
               const mappedClaims: AuditClaim[] = claimsRes.data.map((c) => ({
@@ -260,6 +300,113 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
 
   const pendingMemberDuesAmount = pendingJoiningDues + pendingTreatDues;
   const activeHeadcount = members.filter((m) => m.isActive).length;
+
+  // Authentication Methods
+  const login = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
+    // 1. Check Supabase auth if configured
+    if (isSupabaseConfigured && supabase && password) {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (data?.user) {
+          const matched = members.find((m) => m.email.toLowerCase() === email.trim().toLowerCase());
+          if (matched) setCurrentUserId(matched.id);
+          setIsAuthenticated(true);
+          try { localStorage.setItem('trf_is_authenticated', 'true'); } catch {}
+          return { success: true };
+        }
+        if (error) console.warn('Supabase auth signIn error:', error.message);
+      } catch (err: any) {
+        console.warn('Supabase auth catch:', err);
+      }
+    }
+
+    // 2. Demo / Team member lookup fallback
+    const matched = members.find((m) => m.email.toLowerCase() === email.trim().toLowerCase());
+    if (matched) {
+      setCurrentUserId(matched.id);
+      setIsAuthenticated(true);
+      try { localStorage.setItem('trf_is_authenticated', 'true'); } catch {}
+      return { success: true };
+    }
+
+    return { success: false, error: 'No active profile found for this email. Contact your TRF Manager.' };
+  };
+
+  const logout = async () => {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch {}
+    }
+    setIsAuthenticated(false);
+    try {
+      localStorage.setItem('trf_is_authenticated', 'false');
+    } catch {}
+  };
+
+  // Profile Management (For all users on their own profile)
+  const updateProfile = async (userId: string, data: Partial<Omit<UserProfile, 'id' | 'role'>>) => {
+    setMembers((prev) =>
+      prev.map((m) => (m.id === userId ? { ...m, ...data } : m))
+    );
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const updatePayload: Record<string, any> = {};
+        if (data.name) updatePayload.name = data.name;
+        if (data.phone !== undefined) updatePayload.phone = data.phone;
+        if (data.department) updatePayload.department = data.department;
+        if (data.designation) updatePayload.designation = data.designation;
+        if (data.birthDate) updatePayload.birth_date = data.birthDate;
+        if (data.avatarUrl) updatePayload.avatar_url = data.avatarUrl;
+        await supabase.from('profiles').update(updatePayload).eq('id', userId);
+      } catch (e) {
+        console.warn('Supabase profile update note:', e);
+      }
+    }
+  };
+
+  // RBAC User Management (Manager only)
+  const updateUserRole = async (userId: string, newRole: 'manager' | 'member') => {
+    if (!isManager) return;
+    setMembers((prev) =>
+      prev.map((m) => (m.id === userId ? { ...m, role: newRole } : m))
+    );
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('profiles').update({ role: newRole }).eq('id', userId);
+      } catch {}
+    }
+  };
+
+  const toggleUserActive = async (userId: string) => {
+    if (!isManager) return;
+    const target = members.find((m) => m.id === userId);
+    if (!target) return;
+    const nextState = !target.isActive;
+
+    setMembers((prev) =>
+      prev.map((m) => (m.id === userId ? { ...m, isActive: nextState } : m))
+    );
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('profiles').update({ is_active: nextState }).eq('id', userId);
+      } catch {}
+    }
+  };
+
+  const deleteMember = async (userId: string) => {
+    if (!isManager || userId === currentUser.id) return;
+    setMembers((prev) => prev.filter((m) => m.id !== userId));
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('profiles').delete().eq('id', userId);
+      } catch {}
+    }
+  };
 
   // Actions
   const switchUser = (userId: string) => {
@@ -414,7 +561,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addMember = (data: {
+  const addMember = async (data: {
     name: string;
     email: string;
     role: 'manager' | 'member';
@@ -422,13 +569,47 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     designation: string;
     birthDate: string;
     phone?: string;
+    password?: string;
     joiningFeeAmount?: number;
-  }) => {
-    const newMemberId = `user-${Date.now()}`;
+  }): Promise<{ success: boolean; error?: string }> => {
+    if (!isManager) {
+      return { success: false, error: 'Only TRF Manager can create new members' };
+    }
+
+    if (members.some((m) => m.email.toLowerCase() === data.email.trim().toLowerCase())) {
+      return { success: false, error: 'A member with this email already exists' };
+    }
+
+    let createdId = `user-${Date.now()}`;
+
+    // 1. If Supabase configured and password given, create in Supabase Auth
+    if (isSupabaseConfigured && supabase && data.password) {
+      try {
+        const { data: authData, error: authErr } = await supabase.auth.signUp({
+          email: data.email.trim(),
+          password: data.password,
+          options: {
+            data: {
+              name: data.name,
+              role: data.role,
+              department: data.department,
+            },
+          },
+        });
+        if (authData?.user?.id) {
+          createdId = authData.user.id;
+        } else if (authErr) {
+          console.warn('Supabase auth signup warning:', authErr.message);
+        }
+      } catch (err: any) {
+        console.warn('Supabase signup catch:', err);
+      }
+    }
+
     const newMember: UserProfile = {
-      id: newMemberId,
-      name: data.name,
-      email: data.email,
+      id: createdId,
+      name: data.name.trim(),
+      email: data.email.trim(),
       role: data.role,
       department: data.department || 'Engineering',
       designation: data.designation || 'Team Member',
@@ -438,7 +619,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       joiningFeeStatus: 'pending',
       joiningFeeAmount: data.joiningFeeAmount || 1000,
       isActive: true,
-      avatarUrl: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80`,
+      avatarUrl: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100`,
     };
 
     setMembers((prev) => [...prev, newMember]);
@@ -446,7 +627,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     setTreatEvents((prev) => [
       {
         id: `treat-${Date.now()}`,
-        memberId: newMemberId,
+        memberId: createdId,
         memberName: data.name,
         ruleTitle: 'New Member Joining Fee',
         details: 'Initial TRF pool entry contribution',
@@ -456,6 +637,32 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       },
       ...prev,
     ]);
+
+    // 2. Sync to Supabase profiles table
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('profiles').insert([
+          {
+            id: createdId,
+            name: data.name.trim(),
+            email: data.email.trim(),
+            role: data.role,
+            department: data.department || 'Engineering',
+            designation: data.designation || 'Team Member',
+            joining_date: new Date().toISOString().split('T')[0],
+            birth_date: data.birthDate,
+            phone: data.phone,
+            joining_fee_status: 'pending',
+            joining_fee_amount: data.joiningFeeAmount || 1000,
+            is_active: true,
+          },
+        ]);
+      } catch (e) {
+        console.warn('Supabase profile sync note:', e);
+      }
+    }
+
+    return { success: true };
   };
 
   const updateMemberJoiningFee = (memberId: string, status: 'paid' | 'pending' | 'waived') => {
@@ -682,6 +889,13 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         pendingMemberDuesAmount,
         monthlyPerHeadRate: MONTHLY_RATE,
         activeHeadcount,
+        isAuthenticated,
+        login,
+        logout,
+        updateProfile,
+        updateUserRole,
+        toggleUserActive,
+        deleteMember,
         switchUser,
         toggleRole,
         addTransaction,

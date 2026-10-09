@@ -20,6 +20,7 @@ interface NavbarProps {
   onOpenNewTransaction: () => void;
   onOpenNewClaim: () => void;
   onOpenNewTreat: () => void;
+  onOpenProfile: () => void;
   onToggleSidebar?: () => void;
 }
 
@@ -27,6 +28,7 @@ export function Navbar({
   onOpenNewTransaction,
   onOpenNewClaim,
   onOpenNewTreat,
+  onOpenProfile,
   onToggleSidebar,
 }: NavbarProps) {
   const { 
@@ -35,7 +37,8 @@ export function Navbar({
     members, 
     switchUser, 
     toggleRole, 
-    currentBalance 
+    currentBalance,
+    logout
   } = useTRF();
   const { theme, toggleTheme } = useTheme();
 
@@ -110,7 +113,7 @@ export function Navbar({
             </>
           )}
 
-          {/* User Persona Switcher */}
+          {/* User Persona Switcher & Account Menu */}
           <div className="relative group ml-1">
             <button className="flex items-center gap-2 rounded-md border border-zinc-200 dark:border-zinc-800 p-1 pl-2.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer">
               <div className="text-right hidden sm:block">
@@ -131,10 +134,27 @@ export function Navbar({
 
             {/* Menu */}
             <div className="absolute right-0 mt-1 w-56 rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-1.5 shadow-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-              <div className="px-2 py-1 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
-                Switch Persona
+              <div className="px-2 py-1 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-1.5 mb-1">
+                <div>
+                  <div className="text-xs font-semibold">{currentUser.name}</div>
+                  <div className="text-[10px] text-zinc-400 truncate max-w-[130px]">{currentUser.email}</div>
+                </div>
+                <Badge variant={isManager ? 'default' : 'secondary'} className="text-[9px] px-1 py-0 h-4">
+                  {isManager ? 'Admin' : 'Member'}
+                </Badge>
               </div>
-              <div className="max-h-48 overflow-y-auto space-y-0.5">
+
+              <button
+                onClick={onOpenProfile}
+                className="w-full text-left rounded px-2 py-1.5 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                Profile & Settings
+              </button>
+
+              <div className="px-2 py-1 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mt-1">
+                Switch Active Persona
+              </div>
+              <div className="max-h-36 overflow-y-auto space-y-0.5">
                 {members.map((m) => (
                   <button
                     key={m.id}
@@ -145,19 +165,26 @@ export function Navbar({
                         : 'hover:bg-zinc-50 dark:hover:bg-zinc-900'
                     }`}
                   >
-                    <span>{m.name}</span>
-                    <Badge variant={m.role === 'manager' ? 'default' : 'secondary'} className="text-[9px] px-1 py-0 h-4">
+                    <span className="truncate">{m.name}</span>
+                    <span className="text-[9px] text-zinc-400">
                       {m.role === 'manager' ? 'Admin' : 'Member'}
-                    </Badge>
+                    </span>
                   </button>
                 ))}
               </div>
-              <div className="pt-1 mt-1 border-t border-zinc-200 dark:border-zinc-800">
+
+              <div className="pt-1 mt-1 border-t border-zinc-200 dark:border-zinc-800 space-y-0.5">
                 <button
                   onClick={toggleRole}
                   className="w-full text-center py-1 text-[11px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer"
                 >
-                  Toggle Role ({currentUser.role === 'manager' ? 'To Member' : 'To Manager'})
+                  Toggle Role ({isManager ? 'To Member' : 'To Manager'})
+                </button>
+                <button
+                  onClick={logout}
+                  className="w-full text-center py-1 text-[11px] text-red-600 dark:text-red-400 hover:underline cursor-pointer"
+                >
+                  Sign Out
                 </button>
               </div>
             </div>

@@ -19,6 +19,9 @@ import { SubmitClaimModal } from '@/components/modals/SubmitClaimModal';
 import { AddTreatModal } from '@/components/modals/AddTreatModal';
 import { AddVenueModal } from '@/components/modals/AddVenueModal';
 import { AddMemberModal } from '@/components/modals/AddMemberModal';
+import { ProfileModal } from '@/components/modals/ProfileModal';
+import { LoginScreen } from '@/components/auth/LoginScreen';
+import { useTRF } from '@/context/TRFContext';
 
 // Mobile Navigation
 import { 
@@ -32,6 +35,7 @@ import {
 } from 'lucide-react';
 
 function DashboardContent() {
+  const { isAuthenticated } = useTRF();
   const [activeTab, setActiveTab] = useState<NavTab>('overview');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -41,6 +45,7 @@ function DashboardContent() {
   const [isTreatModalOpen, setIsTreatModalOpen] = useState(false);
   const [isVenueModalOpen, setIsVenueModalOpen] = useState(false);
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // Restore sidebar state preference from localStorage
   useEffect(() => {
@@ -66,6 +71,10 @@ function DashboardContent() {
     });
   };
 
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
       {/* 1. Fixed Sidebar Component */}
@@ -74,6 +83,7 @@ function DashboardContent() {
         onTabChange={setActiveTab}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={toggleSidebarCollapse}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
       />
 
       {/* 2. Main Layout Area (Automatically adjusts margin when sidebar expands/collapses) */}
@@ -87,6 +97,7 @@ function DashboardContent() {
           onOpenNewTransaction={() => setIsTransactionModalOpen(true)}
           onOpenNewClaim={() => setIsClaimModalOpen(true)}
           onOpenNewTreat={() => setIsTreatModalOpen(true)}
+          onOpenProfile={() => setIsProfileModalOpen(true)}
           onToggleSidebar={toggleSidebarCollapse}
         />
 
@@ -244,6 +255,11 @@ function DashboardContent() {
       <AddMemberModal
         isOpen={isMemberModalOpen}
         onClose={() => setIsMemberModalOpen(false)}
+      />
+
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
       />
     </div>
   );

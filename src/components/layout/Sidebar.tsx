@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { useTRF } from '@/context/TRFContext';
-import { useTheme } from '@/context/ThemeContext';
+import React from "react";
+import { useTRF } from "@/context/TRFContext";
+import { useTheme } from "@/context/ThemeContext";
 import {
   LayoutDashboard,
   Receipt,
@@ -15,25 +15,26 @@ import {
   ChevronLeft,
   ChevronRight,
   Sun,
-  Moon
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { motion } from 'framer-motion';
+  Moon,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
 
-export type NavTab = 
-  | 'overview' 
-  | 'ledger' 
-  | 'audit-claims' 
-  | 'birthdays' 
-  | 'activities-venues' 
-  | 'rules-treats' 
-  | 'members';
+export type NavTab =
+  | "overview"
+  | "ledger"
+  | "audit-claims"
+  | "birthdays"
+  | "activities-venues"
+  | "rules-treats"
+  | "members";
 
 interface SidebarProps {
   activeTab: NavTab;
   onTabChange: (tab: NavTab) => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  onOpenProfile?: () => void;
 }
 
 export function Sidebar({
@@ -41,6 +42,7 @@ export function Sidebar({
   onTabChange,
   isCollapsed,
   onToggleCollapse,
+  onOpenProfile,
 }: SidebarProps) {
   const { currentUser, isManager } = useTRF();
   const { theme, toggleTheme } = useTheme();
@@ -50,13 +52,13 @@ export function Sidebar({
     label: string;
     icon: React.ElementType;
   }[] = [
-    { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'ledger', label: 'Funds Ledger', icon: Receipt },
-    { id: 'audit-claims', label: 'Audit Claims', icon: FileSpreadsheet },
-    { id: 'birthdays', label: 'Birthdays', icon: Cake },
-    { id: 'activities-venues', label: 'Places & Outings', icon: Compass },
-    { id: 'rules-treats', label: 'Treats & Rules', icon: Gift },
-    { id: 'members', label: 'Team & Fees', icon: Users },
+    { id: "overview", label: "Dashboard", icon: LayoutDashboard },
+    { id: "ledger", label: "Funds Ledger", icon: Receipt },
+    { id: "audit-claims", label: "Audit Claims", icon: FileSpreadsheet },
+    { id: "birthdays", label: "Birthdays", icon: Cake },
+    { id: "activities-venues", label: "Places & Outings", icon: Compass },
+    { id: "rules-treats", label: "Treats & Rules", icon: Gift },
+    { id: "members", label: "Team & Fees", icon: Users },
   ];
 
   return (
@@ -75,7 +77,7 @@ export function Sidebar({
             </div>
             {!isCollapsed && (
               <span className="font-semibold text-sm tracking-tight text-zinc-900 dark:text-zinc-50 truncate">
-                TRF Portal
+                Vicenna-AlmusNet TRF
               </span>
             )}
           </div>
@@ -85,9 +87,13 @@ export function Sidebar({
             size="icon"
             onClick={onToggleCollapse}
             className="h-7 w-7 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50"
-            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
+            {isCollapsed ? (
+              <ChevronRight className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronLeft className="h-3.5 w-3.5" />
+            )}
           </Button>
         </div>
 
@@ -102,14 +108,16 @@ export function Sidebar({
                 onClick={() => onTabChange(item.id)}
                 title={isCollapsed ? item.label : undefined}
                 className={`w-full flex items-center gap-3 rounded-md px-2.5 py-2 text-xs font-medium transition-colors cursor-pointer ${
-                  isCollapsed ? 'justify-center px-0' : ''
+                  isCollapsed ? "justify-center px-0" : ""
                 } ${
                   isActive
-                    ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 font-semibold'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-50'
+                    ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 font-semibold"
+                    : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-50"
                 }`}
               >
-                <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-zinc-900 dark:text-zinc-50' : 'text-zinc-500'}`} />
+                <Icon
+                  className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-zinc-900 dark:text-zinc-50" : "text-zinc-500"}`}
+                />
                 {!isCollapsed && <span className="truncate">{item.label}</span>}
               </button>
             );
@@ -124,17 +132,32 @@ export function Sidebar({
           variant="ghost"
           size="sm"
           onClick={toggleTheme}
-          className={`w-full justify-start text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-50 ${isCollapsed ? 'justify-center px-0' : ''}`}
-          title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+          className={`w-full justify-start text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-50 ${isCollapsed ? "justify-center px-0" : ""}`}
+          title={theme === "dark" ? "Light Mode" : "Dark Mode"}
         >
-          {theme === 'dark' ? <Sun className="h-3.5 w-3.5 flex-shrink-0" /> : <Moon className="h-3.5 w-3.5 flex-shrink-0" />}
-          {!isCollapsed && <span className="ml-2 text-xs">{theme === 'dark' ? 'Light' : 'Dark'}</span>}
+          {theme === "dark" ? (
+            <Sun className="h-3.5 w-3.5 flex-shrink-0" />
+          ) : (
+            <Moon className="h-3.5 w-3.5 flex-shrink-0" />
+          )}
+          {!isCollapsed && (
+            <span className="ml-2 text-xs">
+              {theme === "dark" ? "Light" : "Dark"}
+            </span>
+          )}
         </Button>
 
         {/* User profile */}
-        <div className={`flex items-center gap-2 p-1.5 rounded-md ${isCollapsed ? 'justify-center p-1' : ''}`}>
+        <button
+          onClick={onOpenProfile}
+          className={`w-full flex items-center gap-2 p-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer text-left ${isCollapsed ? "justify-center p-1" : ""}`}
+          title="Click to view & edit profile"
+        >
           <img
-            src={currentUser.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
+            src={
+              currentUser.avatarUrl ||
+              "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100"
+            }
             alt={currentUser.name}
             className="h-6 w-6 rounded-full object-cover flex-shrink-0"
           />
@@ -144,11 +167,11 @@ export function Sidebar({
                 {currentUser.name}
               </div>
               <div className="text-[10px] text-zinc-400 truncate">
-                {isManager ? 'Manager' : 'Member'}
+                {isManager ? "Manager" : "Member"}
               </div>
             </div>
           )}
-        </div>
+        </button>
       </div>
     </motion.aside>
   );

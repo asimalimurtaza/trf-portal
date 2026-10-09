@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { AlertCircle, Key } from 'lucide-react';
 
 interface AddMemberModalProps {
   isOpen: boolean;
@@ -24,20 +25,35 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('TRFPass2026!');
   const [role, setRole] = useState<'member' | 'manager'>('member');
   const [department, setDepartment] = useState('Engineering');
   const [designation, setDesignation] = useState('');
   const [birthDate, setBirthDate] = useState('2000-01-01');
   const [joiningFeeAmount, setJoiningFeeAmount] = useState('1000');
   const [phone, setPhone] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const generateRandomPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$';
+    let pwd = '';
+    for (let i = 0; i < 10; i++) {
+      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setPassword(pwd);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
 
-    addMember({
+    setErrorMsg('');
+    setIsSubmitting(true);
+    const res = await addMember({
       name: name.trim(),
       email: email.trim(),
+      password,
       role,
       department,
       designation: designation.trim() || 'Software Engineer',
@@ -45,19 +61,34 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
       phone: phone.trim() || undefined,
       joiningFeeAmount: parseFloat(joiningFeeAmount) || 1000,
     });
+    setIsSubmitting(false);
 
-    onClose();
+    if (res.success) {
+      setName('');
+      setEmail('');
+      setDesignation('');
+      onClose();
+    } else {
+      setErrorMsg(res.error || 'Failed to create member.');
+    }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add Team Member</DialogTitle>
+          <DialogTitle>Provision Team Member Account</DialogTitle>
           <DialogDescription>
-            Register member profile and record required joining fee dues
+            Admin user provisioning: sets up credentials, role permissions, and records joining fee dues
           </DialogDescription>
         </DialogHeader>
+
+        {errorMsg && (
+          <div className="p-3 rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20 text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div className="grid grid-cols-2 gap-3">
@@ -81,6 +112,42 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="daniyal@company.com"
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="mem-pass">Initial Password</Label>
+                <button
+                  type="button"
+                  onClick={generateRandomPassword}
+                  className="text-[10px] text-zinc-500 hover:text-foreground flex items-center gap-1 cursor-pointer"
+                >
+                  <Key className="h-2.5 w-2.5" />
+                  <span>Generate</span>
+                </button>
+              </div>
+              <Input
+                id="mem-pass"
+                type="text"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="mem-role">System Role (RBAC)</Label>
+              <select
+                id="mem-role"
+                value={role}
+                onChange={(e) => setRole(e.target.value as 'member' | 'manager')}
+                className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="member" className="bg-background">Standard Member</option>
+                <option value="manager" className="bg-background">TRF Manager (Admin)</option>
+              </select>
             </div>
           </div>
 
@@ -124,7 +191,7 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="mem-fee">Joining Fee (PKR)</Label>
+              <Label htmlFor="mem-fee">Joining Fee Due (PKR)</Label>
               <Input
                 id="mem-fee"
                 type="number"
@@ -134,36 +201,22 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="mem-role">System Role</Label>
-              <select
-                id="mem-role"
-                value={role}
-                onChange={(e) => setRole(e.target.value as 'member' | 'manager')}
-                className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="member" className="bg-background">Standard Member</option>
-                <option value="manager" className="bg-background">TRF Manager (Admin)</option>
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="mem-phone">Phone / WhatsApp</Label>
-              <Input
-                id="mem-phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+92 300 1234567"
-              />
-            </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="mem-phone">Phone / WhatsApp</Label>
+            <Input
+              id="mem-phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+92 300 1234567"
+            />
           </div>
 
           <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">
-              Register Member
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Provisioning...' : 'Provision Account'}
             </Button>
           </DialogFooter>
         </form>

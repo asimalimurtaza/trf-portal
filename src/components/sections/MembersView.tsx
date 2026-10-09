@@ -1,12 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useTRF } from '@/context/TRFContext';
 import { formatDate } from '@/lib/utils';
-import { UserPlus, Check, Clock } from 'lucide-react';
+import { UserPlus, Check, Clock, Search, ShieldCheck, User, ShieldAlert, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   Table,
@@ -23,7 +24,36 @@ interface MembersViewProps {
 }
 
 export function MembersView({ onOpenAddMember }: MembersViewProps) {
-  const { members, isManager, updateMemberJoiningFee, activeHeadcount } = useTRF();
+  const {
+    members,
+    currentUser,
+    isManager,
+    updateMemberJoiningFee,
+    updateUserRole,
+    toggleUserActive,
+    deleteMember,
+    activeHeadcount,
+  } = useTRF();
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'manager' | 'member' | 'pending_dues'>('all');
+
+  const filteredMembers = members.filter((m) => {
+    if (roleFilter === 'manager' && m.role !== 'manager') return false;
+    if (roleFilter === 'member' && m.role !== 'member') return false;
+    if (roleFilter === 'pending_dues' && m.joiningFeeStatus !== 'pending') return false;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return (
+        m.name.toLowerCase().includes(q) ||
+        m.email.toLowerCase().includes(q) ||
+        m.department.toLowerCase().includes(q) ||
+        m.designation.toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
 
   return (
     <motion.div
@@ -36,10 +66,10 @@ export function MembersView({ onOpenAddMember }: MembersViewProps) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-            Team & Joining Fees
+            Team & User Management
           </h2>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-            {activeHeadcount} team members • Standard joining fee: PKR 1,000 per new member
+            {activeHeadcount} active members • {isManager ? 'Manager access: provision users, assign RBAC roles, track dues' : 'Team roster and contact directory'}
           </p>
         </div>
 
@@ -50,107 +80,229 @@ export function MembersView({ onOpenAddMember }: MembersViewProps) {
             className="gap-1.5 self-start sm:self-auto"
           >
             <UserPlus className="h-3.5 w-3.5" />
-            <span>Add Member</span>
+            <span>Provision User</span>
           </Button>
         )}
       </div>
 
-      {/* Roster Table */}
+      {/* Search & Filters */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+          <Input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by name, email, department..."
+            className="pl-9 h-8 text-xs"
+          />
+        </div>
+
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+          <Button
+            variant={roleFilter === 'all' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setRoleFilter('all')}
+            className="h-8 text-xs"
+          >
+            All ({members.length})
+          </Button>
+          <Button
+            variant={roleFilter === 'manager' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setRoleFilter('manager')}
+            className="h-8 text-xs"
+          >
+            Managers
+          </Button>
+          <Button
+            variant={roleFilter === 'member' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setRoleFilter('member')}
+            className="h-8 text-xs"
+          >
+            Members
+          </Button>
+          <Button
+            variant={roleFilter === 'pending_dues' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setRoleFilter('pending_dues')}
+            className="h-8 text-xs"
+          >
+            Pending Dues
+          </Button>
+        </div>
+      </div>
+
+      {/* Roster & User Management Table */}
       <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Member</TableHead>
+                <TableHead>User Profile</TableHead>
                 <TableHead>Department</TableHead>
-                <TableHead>Role</TableHead>
+                <TableHead>RBAC Role</TableHead>
                 <TableHead>Birthday</TableHead>
-                <TableHead>Joining Fee</TableHead>
-                {isManager && <TableHead className="text-right">Action</TableHead>}
+                <TableHead>Joining Fee (PKR 1,000)</TableHead>
+                {isManager && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {members.map((member) => {
-                const isPaid = member.joiningFeeStatus === 'paid';
-                const isPending = member.joiningFeeStatus === 'pending';
+              {filteredMembers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={isManager ? 6 : 5} className="h-24 text-center text-xs text-zinc-500">
+                    No matching users found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredMembers.map((member) => {
+                  const isPaid = member.joiningFeeStatus === 'paid';
+                  const isPending = member.joiningFeeStatus === 'pending';
+                  const isCurrentUser = member.id === currentUser.id;
 
-                return (
-                  <TableRow key={member.id}>
-                    {/* Member */}
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={member.avatarUrl} alt={member.name} />
-                          <AvatarFallback className="text-[10px] uppercase">
-                            {member.name.slice(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium text-xs text-zinc-900 dark:text-zinc-100">
-                            {member.name}
-                          </div>
-                          <div className="text-[11px] text-zinc-400">
-                            {member.designation}
+                  return (
+                    <TableRow key={member.id} className={!member.isActive ? 'opacity-50' : ''}>
+                      {/* Member */}
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={member.avatarUrl} alt={member.name} />
+                            <AvatarFallback className="text-[10px] uppercase">
+                              {member.name.slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium text-xs text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                              <span>{member.name}</span>
+                              {isCurrentUser && (
+                                <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">
+                                  You
+                                </Badge>
+                              )}
+                              {!member.isActive && (
+                                <Badge variant="destructive" className="text-[9px] px-1 py-0 h-4">
+                                  Inactive
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-zinc-400">
+                              {member.email} • {member.designation}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </TableCell>
+                      </TableCell>
 
-                    {/* Department */}
-                    <TableCell className="text-xs text-zinc-500">
-                      {member.department}
-                    </TableCell>
+                      {/* Department */}
+                      <TableCell className="text-xs text-zinc-500">
+                        {member.department}
+                      </TableCell>
 
-                    {/* Role */}
-                    <TableCell>
-                      <Badge
-                        variant={member.role === 'manager' ? 'default' : 'secondary'}
-                        className="text-[10px]"
-                      >
-                        {member.role === 'manager' ? 'Admin' : 'Member'}
-                      </Badge>
-                    </TableCell>
-
-                    {/* Birthday */}
-                    <TableCell className="text-xs text-zinc-500 whitespace-nowrap">
-                      {formatDate(member.birthDate)}
-                    </TableCell>
-
-                    {/* Joining Fee */}
-                    <TableCell>
-                      {isPaid ? (
-                        <div className="flex items-center gap-1.5 text-xs text-zinc-900 dark:text-zinc-100 font-medium">
-                          <Check className="h-3.5 w-3.5 text-zinc-500" />
-                          <span>Paid</span>
-                        </div>
-                      ) : isPending ? (
-                        <Badge variant="outline" className="text-[10px] font-normal gap-1 border-dashed">
-                          <Clock className="h-3 w-3 text-zinc-400" />
-                          <span>Pending (1,000 PKR)</span>
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-zinc-400">Waived</span>
-                      )}
-                    </TableCell>
-
-                    {/* Action */}
-                    {isManager && (
-                      <TableCell className="text-right">
-                        {isPending && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs"
-                            onClick={() => updateMemberJoiningFee(member.id, 'paid')}
+                      {/* RBAC Role */}
+                      <TableCell>
+                        {isManager && !isCurrentUser ? (
+                          <div className="flex items-center gap-1.5">
+                            <Badge
+                              variant={member.role === 'manager' ? 'default' : 'secondary'}
+                              className="text-[10px]"
+                            >
+                              {member.role === 'manager' ? 'Admin' : 'Member'}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-1.5 text-[10px] text-zinc-500 hover:text-foreground"
+                              onClick={() =>
+                                updateUserRole(
+                                  member.id,
+                                  member.role === 'manager' ? 'member' : 'manager'
+                                )
+                              }
+                              title={`Switch to ${member.role === 'manager' ? 'Member' : 'Manager'}`}
+                            >
+                              Switch
+                            </Button>
+                          </div>
+                        ) : (
+                          <Badge
+                            variant={member.role === 'manager' ? 'default' : 'secondary'}
+                            className="text-[10px]"
                           >
-                            Mark Paid
-                          </Button>
+                            {member.role === 'manager' ? 'Admin' : 'Member'}
+                          </Badge>
                         )}
                       </TableCell>
-                    )}
-                  </TableRow>
-                );
-              })}
+
+                      {/* Birthday */}
+                      <TableCell className="text-xs text-zinc-500 whitespace-nowrap">
+                        {formatDate(member.birthDate)}
+                      </TableCell>
+
+                      {/* Joining Fee */}
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {isPaid ? (
+                            <div className="flex items-center gap-1 text-xs text-zinc-900 dark:text-zinc-100 font-medium">
+                              <Check className="h-3.5 w-3.5 text-zinc-500" />
+                              <span>Paid</span>
+                            </div>
+                          ) : isPending ? (
+                            <Badge variant="outline" className="text-[10px] font-normal gap-1 border-dashed">
+                              <Clock className="h-3 w-3 text-zinc-400" />
+                              <span>Pending</span>
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-zinc-400">Waived</span>
+                          )}
+
+                          {isManager && isPending && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 px-2 text-[10px]"
+                              onClick={() => updateMemberJoiningFee(member.id, 'paid')}
+                            >
+                              Mark Paid
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      {/* Actions (Manager only) */}
+                      {isManager && (
+                        <TableCell className="text-right whitespace-nowrap">
+                          {!isCurrentUser && (
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => toggleUserActive(member.id)}
+                              >
+                                {member.isActive ? 'Deactivate' : 'Activate'}
+                              </Button>
+
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-zinc-400 hover:text-red-600"
+                                onClick={() => {
+                                  if (confirm(`Remove ${member.name} from team portal?`)) {
+                                    deleteMember(member.id);
+                                  }
+                                }}
+                                title="Delete user"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          )}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </CardContent>
