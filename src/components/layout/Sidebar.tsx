@@ -117,34 +117,28 @@ export function Sidebar({
       >
         {/* Top Header */}
         <div>
-          <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center">
-            {isCurrentlyHovered ? (
-              <div className="w-full flex items-center justify-between px-3.5">
-                <div className="flex items-center gap-2.5 overflow-hidden">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-zinc-900 text-zinc-50 dark:bg-zinc-50 dark:text-zinc-900 shadow-xs">
-                    <Wallet className="h-4 w-4" />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-semibold text-xs tracking-tight text-zinc-900 dark:text-zinc-50 truncate">
-                      Vicenna TRF
-                    </span>
-                    <span className="text-[10px] text-zinc-400 truncate">
-                      Recreational Fund
-                    </span>
-                  </div>
-                </div>
+          <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-3.5 overflow-hidden">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-zinc-50 dark:bg-zinc-50 dark:text-zinc-900 shadow-xs">
+                <Wallet className="h-4 w-4" />
               </div>
-            ) : (
-              <div className="w-full flex items-center justify-center">
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-zinc-900 text-zinc-50 dark:bg-zinc-50 dark:text-zinc-900 shadow-xs">
-                  <Wallet className="h-4 w-4" />
-                </div>
+              <div
+                className={`flex flex-col min-w-0 transition-opacity duration-200 ${
+                  isCurrentlyHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
+              >
+                <span className="font-semibold text-xs tracking-tight text-zinc-900 dark:text-zinc-50 truncate">
+                  Vicenna TRF
+                </span>
+                <span className="text-[10px] text-zinc-400 truncate">
+                  Recreational Fund
+                </span>
               </div>
-            )}
+            </div>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="p-2 space-y-1 overflow-y-auto max-h-[calc(100vh-170px)] scrollbar-none">
+          {/* Navigation Links with perfectly consistent icon alignment & spacing */}
+          <nav className="p-2 space-y-1 overflow-y-auto max-h-[calc(100vh-175px)] scrollbar-none">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = resolvedTab === item.id;
@@ -153,18 +147,14 @@ export function Sidebar({
                   key={item.id}
                   href={item.href}
                   onClick={() => onTabChange?.(item.id)}
-                  title={!isCurrentlyHovered ? item.label : undefined}
-                  className={`relative group flex items-center rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                    !isCurrentlyHovered
-                      ? 'justify-center h-10 w-10 mx-auto'
-                      : 'gap-3 px-3 py-2.5 w-full'
-                  } ${
+                  className={`relative group w-full h-9 flex items-center rounded-lg text-xs font-medium transition-colors cursor-pointer px-1.5 ${
                     isActive
                       ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-xs font-semibold'
                       : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/70 hover:text-zinc-900 dark:hover:text-zinc-50'
                   }`}
                 >
-                  <div className="relative shrink-0 flex items-center justify-center">
+                  {/* Fixed 32px Icon container - perfectly aligned across both open & close states */}
+                  <div className="w-8 h-8 shrink-0 flex items-center justify-center relative">
                     <Icon
                       className={`h-4 w-4 ${
                         isActive
@@ -173,28 +163,31 @@ export function Sidebar({
                       }`}
                     />
                     {!isCurrentlyHovered && item.badge !== undefined && item.badge > 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 h-2 w-2 rounded-full bg-blue-600 ring-2 ring-white dark:ring-zinc-950" />
+                      <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-blue-600 ring-2 ring-white dark:ring-zinc-950" />
                     )}
                   </div>
 
-                  {isCurrentlyHovered && (
-                    <div className="flex-1 flex items-center justify-between min-w-0">
-                      <span className="truncate">{item.label}</span>
-                      {item.badge !== undefined && item.badge > 0 && (
-                        <span
-                          className={`ml-auto inline-flex items-center justify-center rounded-full text-[10px] font-bold h-4 min-w-4 px-1 leading-none shadow-xs ${
-                            isActive
-                              ? 'bg-white text-zinc-900 dark:bg-zinc-900 dark:text-white'
-                              : 'bg-blue-600 text-white'
-                          }`}
-                        >
-                          {item.badge > 9 ? '9+' : item.badge}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  {/* Text Label & Badge - smoothly fades in when hovered */}
+                  <div
+                    className={`flex-1 flex items-center justify-between min-w-0 pl-2.5 transition-opacity duration-200 ${
+                      isCurrentlyHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                    }`}
+                  >
+                    <span className="truncate">{item.label}</span>
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <span
+                        className={`ml-auto inline-flex items-center justify-center rounded-full text-[10px] font-bold h-4 min-w-4 px-1 leading-none shadow-xs ${
+                          isActive
+                            ? 'bg-white text-zinc-900 dark:bg-zinc-900 dark:text-white'
+                            : 'bg-blue-600 text-white'
+                        }`}
+                      >
+                        {item.badge > 9 ? '9+' : item.badge}
+                      </span>
+                    )}
+                  </div>
 
-                  {/* Floating tooltip on hover when sidebar is collapsed */}
+                  {/* Floating tooltip on hover when sidebar is in collapsed state */}
                   {!isCurrentlyHovered && (
                     <div className="absolute left-full ml-3 px-2.5 py-1 rounded-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 text-xs font-medium whitespace-nowrap shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
                       {item.label}
@@ -211,69 +204,71 @@ export function Sidebar({
           </nav>
         </div>
 
-        {/* Bottom Footer Section */}
-        <div className="p-2 border-t border-zinc-200 dark:border-zinc-800 space-y-1">
+        {/* Bottom Footer Section with identical icon alignment */}
+        <div className="p-2 border-t border-zinc-200 dark:border-zinc-800 space-y-1 overflow-hidden">
           {/* Theme switcher */}
           <Button
             variant="ghost"
             size="sm"
             onClick={toggleTheme}
-            className={`w-full text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-50 ${
-              !isCurrentlyHovered
-                ? 'justify-center px-0 h-9 w-9 mx-auto'
-                : 'justify-start px-2.5 h-9'
-            }`}
+            className="w-full h-9 flex items-center justify-start rounded-lg px-1.5 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800/70"
             title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             aria-label="Toggle theme"
           >
-            {theme === 'dark' ? (
-              <Sun className="h-4 w-4 shrink-0" />
-            ) : (
-              <Moon className="h-4 w-4 shrink-0" />
-            )}
-            {isCurrentlyHovered && (
-              <span className="ml-2.5 text-xs">
-                {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-              </span>
-            )}
+            <div className="w-8 h-8 shrink-0 flex items-center justify-center">
+              {theme === 'dark' ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </div>
+            <span
+              className={`pl-2.5 text-xs whitespace-nowrap transition-opacity duration-200 ${
+                isCurrentlyHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              }`}
+            >
+              {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+            </span>
           </Button>
 
           {/* User profile row */}
           <button
             onClick={onOpenProfile}
-            className={`w-full flex items-center rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors cursor-pointer text-left ${
-              !isCurrentlyHovered ? 'justify-center p-1 h-10 w-10 mx-auto' : 'gap-2.5 p-2'
-            }`}
+            className="w-full h-10 flex items-center rounded-lg px-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors cursor-pointer text-left overflow-hidden"
             title="Profile & Settings"
           >
-            <img
-              src={
-                currentUser.avatarUrl ||
-                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'
-              }
-              alt={currentUser.name}
-              className="h-7 w-7 rounded-full object-cover shrink-0 ring-1 ring-zinc-200 dark:ring-zinc-700"
-            />
-            {isCurrentlyHovered && (
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-                  {currentUser.name}
-                </div>
-                <div className="text-[10px] text-zinc-400 truncate flex items-center gap-1">
-                  <span>{isManager ? 'Manager' : 'Member'}</span>
-                  {currentUser.employeeId && (
-                    <span>• {currentUser.employeeId}</span>
-                  )}
-                </div>
+            <div className="w-8 h-8 shrink-0 flex items-center justify-center">
+              <img
+                src={
+                  currentUser.avatarUrl ||
+                  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'
+                }
+                alt={currentUser.name}
+                className="h-7 w-7 rounded-full object-cover ring-1 ring-zinc-200 dark:ring-zinc-700"
+              />
+            </div>
+            <div
+              className={`min-w-0 flex-1 pl-2.5 transition-opacity duration-200 ${
+                isCurrentlyHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              }`}
+            >
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                {currentUser.name}
               </div>
-            )}
+              <div className="text-[10px] text-zinc-400 truncate flex items-center gap-1">
+                <span>{isManager ? 'Manager' : 'Member'}</span>
+                {currentUser.employeeId && (
+                  <span>• {currentUser.employeeId}</span>
+                )}
+              </div>
+            </div>
           </button>
 
           {/* Sign out button (expanded view) */}
           {isCurrentlyHovered && (
             <button
               onClick={logout}
-              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
+              className="w-full h-8 flex items-center gap-2 px-2.5 rounded-lg text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
               title="Sign Out"
             >
               <LogOut className="h-3.5 w-3.5 shrink-0" />
