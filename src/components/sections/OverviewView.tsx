@@ -211,7 +211,7 @@ export function OverviewView({
                         avatarUrl: nextBirthday.member.avatarUrl,
                       })
                     }
-                    className="text-xs hover:border-pink-300 hover:text-pink-600 dark:hover:text-pink-300 cursor-pointer"
+                    className="text-xs cursor-pointer"
                   >
                     Celebrate 🎉
                   </Button>

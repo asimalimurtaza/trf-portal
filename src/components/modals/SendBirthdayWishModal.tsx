@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Cake, Sparkles, Send, Heart } from 'lucide-react';
+import { Cake, Sparkles } from 'lucide-react';
 
 interface SendBirthdayWishModalProps {
   targetMember: { id: string; name: string; avatarUrl?: string } | null;
@@ -54,27 +54,27 @@ export function SendBirthdayWishModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md border-pink-200 dark:border-pink-900/40">
+      <DialogContent className="sm:max-w-md border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
         <DialogHeader>
-          <div className="flex items-center gap-2.5 text-pink-500">
-            <div className="p-2 rounded-xl bg-pink-100 dark:bg-pink-950/60 text-pink-600 dark:text-pink-400">
-              <Cake className="w-5 h-5" />
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100">
+              <Cake className="w-4 h-4" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold">
-                Celebrate {targetMember.name}&apos;s Birthday! 🎉
+              <DialogTitle className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                Celebrate {targetMember.name}&apos;s Birthday
               </DialogTitle>
-              <DialogDescription className="text-xs text-zinc-500">
-                Send real-time celebration confetti directly to {targetMember.name}&apos;s screen!
+              <DialogDescription className="text-xs text-zinc-500 dark:text-zinc-400">
+                Send real-time celebration confetti directly to their screen.
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-3.5 py-1">
           {/* Quick preset choices */}
           <div>
-            <Label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-2 block">
+            <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5 block">
               Quick Birthday Wishes
             </Label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -86,10 +86,10 @@ export function SendBirthdayWishModal({
                     setSelectedPreset(preset);
                     setCustomMessage('');
                   }}
-                  className={`p-2.5 rounded-lg text-left text-xs transition-all border cursor-pointer ${
+                  className={`p-2.5 rounded-lg text-left text-xs transition-colors border cursor-pointer ${
                     selectedPreset === preset && !customMessage
-                      ? 'border-pink-500 bg-pink-50 dark:bg-pink-950/40 font-medium text-pink-700 dark:text-pink-300 ring-1 ring-pink-500'
-                      : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
+                      ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800/80 font-medium text-zinc-900 dark:text-zinc-50 shadow-2xs'
+                      : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
                   }`}
                 >
                   {preset}
@@ -100,15 +100,15 @@ export function SendBirthdayWishModal({
 
           {/* Custom Message Input */}
           <div className="space-y-1.5">
-            <Label htmlFor="custom-wish" className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              Or write a personalized wish:
+            <Label htmlFor="custom-wish" className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              Or personalized note:
             </Label>
             <Input
               id="custom-wish"
               value={customMessage}
               onChange={(e) => setCustomMessage(e.target.value)}
-              placeholder="e.g. Happy Birthday buddy! Many more to come! 🎂"
-              className="text-xs"
+              placeholder="e.g. Happy Birthday! Many more to come! 🎂"
+              className="text-xs border-zinc-200 dark:border-zinc-800"
               maxLength={120}
             />
           </div>
@@ -117,10 +117,10 @@ export function SendBirthdayWishModal({
         <DialogFooter className="gap-2 sm:gap-0 pt-2">
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={onClose}
-            className="text-xs text-zinc-500"
+            className="text-xs"
           >
             Cancel
           </Button>
@@ -130,10 +130,10 @@ export function SendBirthdayWishModal({
             size="sm"
             onClick={handleSend}
             disabled={isSending}
-            className="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-semibold text-xs gap-1.5 shadow-md shadow-pink-500/20 cursor-pointer"
+            className="text-xs gap-1.5 cursor-pointer font-medium"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Send Celebration Confetti 🎉</span>
+            <span>Send Confetti 🎉</span>
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -78,7 +78,7 @@ export function BirthdaysView({ onOpenNewTransaction }: BirthdaysViewProps) {
                 triggerCelebration();
               }
             }}
-            className="gap-1.5 text-xs hover:border-pink-300 hover:text-pink-600 dark:hover:text-pink-300 cursor-pointer"
+            className="gap-1.5 text-xs cursor-pointer"
           >
             <Sparkles className="h-3.5 w-3.5" />
             <span>Celebrate 🎉</span>
@@ -145,7 +145,7 @@ export function BirthdaysView({ onOpenNewTransaction }: BirthdaysViewProps) {
                         avatarUrl: member.avatarUrl,
                       })
                     }
-                    className="gap-1 text-xs shrink-0 hover:border-pink-300 hover:bg-pink-50 hover:text-pink-600 dark:hover:bg-pink-950/40 dark:hover:text-pink-300 transition-colors cursor-pointer"
+                    className="gap-1 text-xs shrink-0 cursor-pointer"
                   >
                     <Cake className="h-3.5 w-3.5" />
                     <span>Wish 🎉</span>
@@ -268,7 +268,7 @@ export function BirthdaysView({ onOpenNewTransaction }: BirthdaysViewProps) {
                               avatarUrl: member.avatarUrl,
                             })
                           }
-                          className="h-6 px-1.5 text-[10px] text-pink-600 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-pink-950/40 cursor-pointer"
+                          className="h-6 px-2 text-[11px] text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer"
                         >
                           Wish
                         </Button>
