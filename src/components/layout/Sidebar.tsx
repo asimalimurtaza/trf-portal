@@ -248,6 +248,71 @@ export function Sidebar({
             })}
           </nav>
         </div>
+
+        {/* Desktop Sidebar Bottom Footer */}
+        <div className="p-2 border-t border-zinc-200 dark:border-zinc-800 space-y-1">
+          {/* Profile row */}
+          <button
+            onClick={onOpenProfile}
+            className="w-full h-9 flex items-center rounded-lg text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/70 hover:text-zinc-900 dark:hover:text-zinc-50 transition-colors cursor-pointer px-1.5 group relative"
+            title="Profile & Settings"
+          >
+            <div className="w-8 h-8 shrink-0 flex items-center justify-center">
+              <img
+                src={
+                  currentUser.avatarUrl ||
+                  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100"
+                }
+                alt={currentUser.name}
+                className="h-6 w-6 rounded-full object-cover"
+              />
+            </div>
+            <div
+              className={`flex-1 flex flex-col items-start min-w-0 pl-2.5 transition-opacity duration-200 ${
+                isCurrentlyHovered
+                  ? "opacity-100"
+                  : "opacity-0 pointer-events-none"
+              }`}
+            >
+              <span className="text-xs font-semibold truncate text-zinc-900 dark:text-zinc-100 w-full text-left">
+                {currentUser.name}
+              </span>
+              <span className="text-[10px] text-zinc-400 truncate w-full text-left">
+                {currentUser.email}
+              </span>
+            </div>
+            {!isCurrentlyHovered && (
+              <div className="absolute left-full ml-3 px-2.5 py-1 rounded-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 text-xs font-medium whitespace-nowrap shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
+                Profile & Settings
+              </div>
+            )}
+          </button>
+
+          {/* Sign Out Button */}
+          <button
+            onClick={logout}
+            className="w-full h-9 flex items-center rounded-lg text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer px-1.5 group relative"
+            title="Sign Out"
+          >
+            <div className="w-8 h-8 shrink-0 flex items-center justify-center">
+              <LogOut className="h-4 w-4" />
+            </div>
+            <div
+              className={`flex-1 flex items-center justify-between min-w-0 pl-2.5 transition-opacity duration-200 ${
+                isCurrentlyHovered
+                  ? "opacity-100"
+                  : "opacity-0 pointer-events-none"
+              }`}
+            >
+              <span className="truncate font-medium">Sign Out</span>
+            </div>
+            {!isCurrentlyHovered && (
+              <div className="absolute left-full ml-3 px-2.5 py-1 rounded-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 text-xs font-medium whitespace-nowrap shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
+                Sign Out
+              </div>
+            )}
+          </button>
+        </div>
       </aside>
 
       {/* 2. Mobile Slide-Over Drawer */}
@@ -376,6 +441,19 @@ export function Sidebar({
                     </div>
                   </div>
                 </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onCloseMobile?.();
+                    logout();
+                  }}
+                  className="w-full text-xs h-9 justify-center text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-950/30 gap-2 cursor-pointer font-medium"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Sign Out</span>
+                </Button>
               </div>
             </motion.aside>
           </>

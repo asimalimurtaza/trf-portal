@@ -18,7 +18,16 @@ import {
   MessageSquare,
   PanelLeftClose,
   PanelLeftOpen,
+  User,
+  LogOut,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { NavTab } from "./Sidebar";
 
@@ -146,64 +155,82 @@ export function Navbar({
             </>
           )}
 
-          {/* User Persona Switcher & Account Menu */}
-          <div className="relative group ml-1">
-            <button className="flex items-center gap-2 rounded-md border border-zinc-200 dark:border-zinc-800 p-1 pl-2.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer">
-              <div className="text-right hidden sm:block">
-                <div className="text-xs font-medium text-zinc-900 dark:text-zinc-100 leading-none">
-                  {currentUser.name}
-                </div>
-                <div className="text-[10px] text-zinc-500 mt-0.5">
-                  {isManager ? "Manager" : "Member"}
-                </div>
-              </div>
-              <img
-                src={
-                  currentUser.avatarUrl ||
-                  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100"
-                }
-                alt={currentUser.name}
-                className="h-6 w-6 rounded-full object-cover"
-              />
-              <ChevronDown className="h-3 w-3 text-zinc-400" />
-            </button>
+          {/* Quick Sign Out button on mobile */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={logout}
+            className="sm:hidden text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 h-8 w-8"
+            title="Sign Out"
+            aria-label="Sign Out"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
 
-            {/* Menu */}
-            <div className="absolute right-0 mt-1 w-56 rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-1.5 shadow-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-              <div className="px-2 py-1 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-1.5 mb-1">
-                <div>
-                  <div className="text-xs font-semibold">
+          {/* User Persona Switcher & Account Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="flex items-center gap-2 rounded-md border border-zinc-200 dark:border-zinc-800 p-1 pl-2.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-zinc-400"
+                aria-label="User account menu"
+              >
+                <div className="text-right hidden sm:block">
+                  <div className="text-xs font-medium text-zinc-900 dark:text-zinc-100 leading-none">
                     {currentUser.name}
                   </div>
-                  <div className="text-[10px] text-zinc-400 truncate max-w-[130px]">
+                  <div className="text-[10px] text-zinc-500 mt-0.5">
+                    {isManager ? "Manager" : "Member"}
+                  </div>
+                </div>
+                <img
+                  src={
+                    currentUser.avatarUrl ||
+                    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100"
+                  }
+                  alt={currentUser.name}
+                  className="h-6 w-6 rounded-full object-cover"
+                />
+                <ChevronDown className="h-3 w-3 text-zinc-400" />
+              </button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="end" className="w-56 p-1.5 z-50">
+              <div className="px-2 py-1.5 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-1.5 mb-1">
+                <div className="min-w-0 pr-2">
+                  <div className="text-xs font-semibold truncate text-zinc-900 dark:text-zinc-100">
+                    {currentUser.name}
+                  </div>
+                  <div className="text-[10px] text-zinc-400 truncate">
                     {currentUser.email}
                   </div>
                 </div>
                 <Badge
                   variant={isManager ? "default" : "secondary"}
-                  className="text-[9px] px-1 py-0 h-4"
+                  className="text-[9px] px-1.5 py-0 h-4 shrink-0"
                 >
                   {isManager ? "Admin" : "Member"}
                 </Badge>
               </div>
 
-              <button
+              <DropdownMenuItem
                 onClick={onOpenProfile}
-                className="w-full text-left rounded px-2 py-1.5 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                className="cursor-pointer text-xs flex items-center gap-2 text-zinc-700 dark:text-zinc-300"
               >
-                Profile & Settings
-              </button>
+                <User className="h-3.5 w-3.5 text-zinc-500" />
+                <span>Profile & Settings</span>
+              </DropdownMenuItem>
 
-              <div className="pt-1 mt-1 border-t border-zinc-200 dark:border-zinc-800">
-                <button
-                  onClick={logout}
-                  className="w-full text-left px-2 py-1.5 rounded text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
-                >
-                  Sign Out
-                </button>
-              </div>
-            </div>
-          </div>
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                onClick={logout}
+                className="cursor-pointer text-xs flex items-center gap-2 text-red-600 dark:text-red-400 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/30"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                <span className="font-medium">Sign Out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>
