@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useTRF } from '@/context/TRFContext';
+import { useModals } from '@/context/ModalContext';
 import { getBirthdayCountdown } from '@/lib/utils';
 import { useCurrentDate } from '@/hooks/useCurrentDate';
 import { Cake, Sparkles, Calendar, ArrowRight } from 'lucide-react';
@@ -12,6 +13,7 @@ interface UpcomingBirthdaysWidgetProps {
 
 export function UpcomingBirthdaysWidget({ onNavigateToBirthdays }: UpcomingBirthdaysWidgetProps) {
   const { members, triggerCelebration } = useTRF();
+  const { openSendBirthdayWishModal } = useModals();
   const currentDate = useCurrentDate();
 
   // Sort members by next birthday countdown
@@ -76,8 +78,14 @@ export function UpcomingBirthdaysWidget({ onNavigateToBirthdays }: UpcomingBirth
             </div>
 
             <button
-              onClick={triggerCelebration}
-              className="p-2 rounded-xl bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 border border-pink-500/30 transition-all hover:scale-105"
+              onClick={() =>
+                openSendBirthdayWishModal({
+                  id: nextCelebration.member.id,
+                  name: nextCelebration.member.name,
+                  avatarUrl: nextCelebration.member.avatarUrl,
+                })
+              }
+              className="p-2 rounded-xl bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 border border-pink-500/30 transition-all hover:scale-105 cursor-pointer"
               title="Celebrate with team confetti!"
             >
               <Sparkles className="h-4 w-4" />

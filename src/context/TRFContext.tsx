@@ -15,6 +15,7 @@ import {
   NotificationType,
   NotificationTargetTab,
   DirectMessage,
+  BirthdayWish,
 } from '@/types/trf';
 import {
   INITIAL_MEMBERS,
@@ -228,7 +229,11 @@ interface TRFContextType {
   }) => Promise<{ success: boolean; shortfall?: number; perMemberShare?: number }>;
   deletePlannedActivity: (activityId: string) => Promise<void>;
   updateRSVP: (activityId: string, status: 'going' | 'maybe' | 'not_going') => void;
-  triggerCelebration: () => void;
+  birthdayWishes: BirthdayWish[];
+  activeCelebration: BirthdayWish | null;
+  clearActiveCelebration: () => void;
+  celebrateBirthday: (recipientId: string, recipientName: string, message?: string) => Promise<void>;
+  triggerCelebration: (recipientId?: string, recipientName?: string, message?: string) => void;
   resetToDemoData: () => void;
 }
 
@@ -285,6 +290,19 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
   });
   const [activeChatUserId, setActiveChatUserId] = useState<string | null>(null);
   const realtimeChatChannelRef = useRef<any>(null);
+
+  const WISHES_STORAGE_KEY = 'trf_birthday_wishes_v1';
+  const [birthdayWishes, setBirthdayWishes] = useState<BirthdayWish[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(WISHES_STORAGE_KEY);
+        if (saved) return JSON.parse(saved);
+      } catch {}
+    }
+    return [];
+  });
+  const [activeCelebration, setActiveCelebration] = useState<BirthdayWish | null>(null);
+  const celebrationChannelRef = useRef<any>(null);
 
   // 1. Initial Load: LocalStorage & Supabase Hydration
   useEffect(() => {
@@ -617,6 +635,16 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       console.warn('Failed to save direct messages to storage:', e);
     }
   }, [isLoaded, directMessages]);
+
+  // Save birthday wishes to localStorage
+  useEffect(() => {
+    if (!isLoaded) return;
+    try {
+      localStorage.setItem(WISHES_STORAGE_KEY, JSON.stringify(birthdayWishes));
+    } catch (e) {
+      console.warn('Failed to save birthday wishes to storage:', e);
+    }
+  }, [isLoaded, birthdayWishes]);
 
   // Cross-Tab & Multi-Window Instant Messaging Broadcast (0ms latency)
   useEffect(() => {
@@ -1208,17 +1236,205 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
-  const triggerCelebration = () => {
+  const fireBirthdayConfetti = () => {
     try {
+      // Left confetti burst
       confetti({
-        particleCount: 70,
-        spread: 60,
-        origin: { y: 0.6 },
-        colors: ['#10b981', '#06b6d4', '#8b5cf6', '#f59e0b'],
+        particleCount: 80,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.7 },
+        colors: ['#ec4899', '#8b5cf6', '#3b82f6', '#f59e0b', '#10b981'],
       });
+      // Right confetti burst
+      confetti({
+        particleCount: 80,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.7 },
+        colors: ['#ec4899', '#8b5cf6', '#3b82f6', '#f59e0b', '#10b981'],
+      });
+      // Center celebratory burst
+      setTimeout(() => {
+        confetti({
+          particleCount: 100,
+          spread: 100,
+          origin: { x: 0.5, y: 0.38 },
+          colors: ['#ec4899', '#f43f5e', '#a855f7', '#fbbf24', '#06b6d4'],
+        });
+      }, 200);
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleReceivedWish = (wish: BirthdayWish) => {
+    setBirthdayWishes((prev) => {
+      if (prev.some((w) => w.id === wish.id)) return prev;
+      return [wish, ...prev];
+    });
+
+    const isForMe =
+      wish.recipientId === currentUser.id ||
+      (currentUser.name && wish.recipientName.trim().toLowerCase() === currentUser.name.trim().toLowerCase());
+
+    if (isForMe && wish.senderId !== currentUser.id) {
+      setActiveCelebration(wish);
+      fireBirthdayConfetti();
+      addNotification({
+        title: '🎂 Birthday Celebration!',
+        message: `${wish.senderName} celebrated your birthday! "${wish.message || 'Happy Birthday!'}"`,
+        type: 'birthday',
+        targetTab: 'birthdays',
+        actionLabel: 'View Birthdays',
+      });
+    }
+  };
+
+  // Supabase Realtime & Cross-Tab Broadcast for Birthday Celebrations
+  useEffect(() => {
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        bc = new BroadcastChannel('trf_birthday_celebrations_v1');
+        bc.onmessage = (event) => {
+          if (event.data?.type === 'BIRTHDAY_WISH' && event.data.wish) {
+            handleReceivedWish(event.data.wish);
+          }
+        };
+      }
+    } catch {}
+
+    let channel: any = null;
+    if (isSupabaseConfigured && supabase) {
+      channel = supabase
+        .channel('trf_birthday_celebrations_realtime', {
+          config: { broadcast: { self: false } },
+        })
+        .on('broadcast', { event: 'birthday_celebrate' }, (payload) => {
+          const incomingWish = payload.payload as BirthdayWish;
+          if (incomingWish) {
+            handleReceivedWish(incomingWish);
+          }
+        })
+        .subscribe();
+      celebrationChannelRef.current = channel;
+    }
+
+    return () => {
+      bc?.close();
+      if (channel && supabase) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [isSupabaseConfigured, currentUser.id, currentUser.name]);
+
+  // Show active celebration if today is user's birthday and they received wishes today
+  useEffect(() => {
+    if (!currentUser?.birthDate) return;
+    const countdown = getBirthdayCountdown(currentUser.birthDate);
+    if (!countdown.isToday) return;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const seenKey = `trf_celebrated_${currentUser.id}_${todayStr}`;
+    if (typeof window !== 'undefined' && localStorage.getItem(seenKey)) return;
+
+    const todayWishes = birthdayWishes.filter((w) => {
+      const isForMe =
+        w.recipientId === currentUser.id ||
+        (currentUser.name && w.recipientName.trim().toLowerCase() === currentUser.name.trim().toLowerCase());
+      const wishDate = w.createdAt ? w.createdAt.split('T')[0] : '';
+      return isForMe && wishDate === todayStr;
+    });
+
+    if (todayWishes.length > 0) {
+      setActiveCelebration(todayWishes[0]);
+      fireBirthdayConfetti();
+      localStorage.setItem(seenKey, 'true');
+    }
+  }, [currentUser.id, currentUser.birthDate, birthdayWishes]);
+
+  const celebrateBirthday = async (
+    recipientId: string,
+    recipientName: string,
+    message?: string
+  ) => {
+    // 1. Sender celebratory feedback
+    fireBirthdayConfetti();
+
+    const newWish: BirthdayWish = {
+      id: `wish-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      recipientId,
+      recipientName,
+      senderId: currentUser.id,
+      senderName: currentUser.name,
+      senderAvatar: currentUser.avatarUrl,
+      message: message || 'Wishing you a fantastic Birthday! 🎉🎂',
+      createdAt: new Date().toISOString(),
+    };
+
+    // 2. Add to local state
+    setBirthdayWishes((prev) => [newWish, ...prev]);
+
+    // 3. Broadcast across tabs (instant)
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        const bc = new BroadcastChannel('trf_birthday_celebrations_v1');
+        bc.postMessage({ type: 'BIRTHDAY_WISH', wish: newWish });
+        setTimeout(() => bc.close(), 150);
+      }
+    } catch {}
+
+    // 4. Broadcast across network via Supabase Realtime (<50ms)
+    try {
+      if (celebrationChannelRef.current) {
+        celebrationChannelRef.current.send({
+          type: 'broadcast',
+          event: 'birthday_celebrate',
+          payload: newWish,
+        });
+      }
+    } catch (e) {
+      console.warn('Realtime celebration broadcast error:', e);
+    }
+
+    // 5. Gracefully persist in Supabase if birthday_wishes table exists (optional, no error if missing)
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('birthday_wishes').insert({
+          recipient_id: newWish.recipientId,
+          recipient_name: newWish.recipientName,
+          sender_id: newWish.senderId,
+          sender_name: newWish.senderName,
+          sender_avatar: newWish.senderAvatar,
+          message: newWish.message,
+        });
+      } catch {
+        // Table doesn't exist yet in production schema; safely ignore!
+      }
+    }
+  };
+
+  const triggerCelebration = (
+    recipientId?: string,
+    recipientName?: string,
+    message?: string
+  ) => {
+    if (recipientId && recipientName) {
+      celebrateBirthday(recipientId, recipientName, message);
+    } else {
+      fireBirthdayConfetti();
+    }
+  };
+
+  const clearActiveCelebration = () => {
+    if (activeCelebration) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      try {
+        localStorage.setItem(`trf_celebrated_${currentUser.id}_${todayStr}`, 'true');
+      } catch {}
+    }
+    setActiveCelebration(null);
   };
 
   const addTransaction = (data: {
@@ -2316,6 +2532,11 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         deleteNotification,
         clearAllNotifications,
         addNotification,
+        // Birthdays & Celebrations
+        birthdayWishes,
+        activeCelebration,
+        clearActiveCelebration,
+        celebrateBirthday,
         triggerCelebration,
         resetToDemoData,
       }}

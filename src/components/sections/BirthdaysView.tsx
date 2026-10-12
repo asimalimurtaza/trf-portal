@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import { useTRF } from '@/context/TRFContext';
+import { useModals } from '@/context/ModalContext';
 import { getBirthdayCountdown } from '@/lib/utils';
 import { useCurrentDate } from '@/hooks/useCurrentDate';
-import { Cake, Sparkles, Plus, Calendar, Clock, Check } from 'lucide-react';
+import { Cake, Sparkles, Plus, Calendar, Clock, Check, Heart } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +25,8 @@ interface BirthdaysViewProps {
 }
 
 export function BirthdaysView({ onOpenNewTransaction }: BirthdaysViewProps) {
-  const { members, triggerCelebration, isManager } = useTRF();
+  const { members, triggerCelebration, birthdayWishes, isManager } = useTRF();
+  const { openSendBirthdayWishModal } = useModals();
   const currentDate = useCurrentDate();
   const [filterMode, setFilterMode] = useState<'week' | 'all'>('week');
 
@@ -65,8 +67,18 @@ export function BirthdaysView({ onOpenNewTransaction }: BirthdaysViewProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={triggerCelebration}
-            className="gap-1.5 text-xs"
+            onClick={() => {
+              if (upcomingWeekBirthdays.length > 0) {
+                openSendBirthdayWishModal({
+                  id: upcomingWeekBirthdays[0].member.id,
+                  name: upcomingWeekBirthdays[0].member.name,
+                  avatarUrl: upcomingWeekBirthdays[0].member.avatarUrl,
+                });
+              } else {
+                triggerCelebration();
+              }
+            }}
+            className="gap-1.5 text-xs hover:border-pink-300 hover:text-pink-600 dark:hover:text-pink-300 cursor-pointer"
           >
             <Sparkles className="h-3.5 w-3.5" />
             <span>Celebrate 🎉</span>
@@ -126,11 +138,17 @@ export function BirthdaysView({ onOpenNewTransaction }: BirthdaysViewProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={triggerCelebration}
-                    className="gap-1 text-xs shrink-0"
+                    onClick={() =>
+                      openSendBirthdayWishModal({
+                        id: member.id,
+                        name: member.name,
+                        avatarUrl: member.avatarUrl,
+                      })
+                    }
+                    className="gap-1 text-xs shrink-0 hover:border-pink-300 hover:bg-pink-50 hover:text-pink-600 dark:hover:bg-pink-950/40 dark:hover:text-pink-300 transition-colors cursor-pointer"
                   >
                     <Cake className="h-3.5 w-3.5" />
-                    <span>Wish</span>
+                    <span>Wish 🎉</span>
                   </Button>
                 </CardContent>
               </Card>
@@ -233,12 +251,28 @@ export function BirthdaysView({ onOpenNewTransaction }: BirthdaysViewProps) {
                     </TableCell>
 
                     <TableCell className="text-right whitespace-nowrap">
-                      <Badge
-                        variant={countdown.isToday ? 'default' : countdown.daysLeft <= 7 ? 'secondary' : 'outline'}
-                        className="text-[10px]"
-                      >
-                        {countdown.isToday ? 'Today! 🎂' : `${countdown.daysLeft}d left`}
-                      </Badge>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Badge
+                          variant={countdown.isToday ? 'default' : countdown.daysLeft <= 7 ? 'secondary' : 'outline'}
+                          className="text-[10px]"
+                        >
+                          {countdown.isToday ? 'Today! 🎂' : `${countdown.daysLeft}d left`}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            openSendBirthdayWishModal({
+                              id: member.id,
+                              name: member.name,
+                              avatarUrl: member.avatarUrl,
+                            })
+                          }
+                          className="h-6 px-1.5 text-[10px] text-pink-600 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-pink-950/40 cursor-pointer"
+                        >
+                          Wish
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

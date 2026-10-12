@@ -4,6 +4,7 @@ import React from 'react';
 import { StatCards } from '@/components/dashboard/StatCards';
 import { NavTab } from '@/components/layout/Sidebar';
 import { useTRF } from '@/context/TRFContext';
+import { useModals } from '@/context/ModalContext';
 import { formatPKR, formatDate } from '@/lib/utils';
 import { 
   ArrowRight, 
@@ -48,6 +49,7 @@ export function OverviewView({
     updateClaimStatus,
     triggerCelebration 
   } = useTRF();
+  const { openSendBirthdayWishModal } = useModals();
 
   const currentDate = useCurrentDate();
   const latestClaim = claims[0];
@@ -202,10 +204,16 @@ export function OverviewView({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={triggerCelebration}
-                    className="text-xs"
+                    onClick={() =>
+                      openSendBirthdayWishModal({
+                        id: nextBirthday.member.id,
+                        name: nextBirthday.member.name,
+                        avatarUrl: nextBirthday.member.avatarUrl,
+                      })
+                    }
+                    className="text-xs hover:border-pink-300 hover:text-pink-600 dark:hover:text-pink-300 cursor-pointer"
                   >
-                    Celebrate
+                    Celebrate 🎉
                   </Button>
                 </>
               ) : (

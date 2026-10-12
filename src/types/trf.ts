@@ -160,3 +160,14 @@ export interface DirectMessage {
   isRead: boolean;
   createdAt: string; // ISO format
 }
+
+export interface BirthdayWish {
+  id: string;
+  recipientId: string;
+  recipientName: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar?: string;
+  message?: string;
+  createdAt: string; // ISO format
+}
