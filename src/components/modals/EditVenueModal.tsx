@@ -46,13 +46,13 @@ export function EditVenueModal({ venue, isOpen, onClose }: EditVenueModalProps) 
     }
   }, [venue]);
 
-  if (!venue) return null;
+  if (!venue || !isManager) return null;
 
-  const canEditOrDelete = isManager || venue.suggestedBy === currentUser.name;
+  const canEditOrDelete = isManager;
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !location.trim()) return;
+    if (!isManager || !name.trim() || !location.trim()) return;
 
     setIsSubmitting(true);
     await updateVenue(venue.id, {
@@ -69,6 +69,7 @@ export function EditVenueModal({ venue, isOpen, onClose }: EditVenueModalProps) 
   };
 
   const handleDelete = async () => {
+    if (!isManager) return;
     if (window.confirm(`Are you sure you want to delete "${venue.name}" from suggested places?`)) {
       setIsSubmitting(true);
       await deleteVenue(venue.id);

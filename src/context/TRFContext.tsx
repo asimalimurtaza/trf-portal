@@ -15,6 +15,7 @@ import {
   NotificationType,
   NotificationTargetTab,
   DirectMessage,
+  BirthdayWish,
 } from '@/types/trf';
 import {
   INITIAL_MEMBERS,
@@ -124,7 +125,7 @@ interface TRFContextType {
     category: TransactionCategory;
     date: string;
     relatedMemberId?: string;
-  }) => void;
+  }) => Promise<Transaction | undefined> | Transaction | void;
   deleteTransaction: (id: string) => void;
   createAuditClaim: (data: {
     monthYear: string;
@@ -224,11 +225,16 @@ interface TRFContextType {
   completePlannedActivity: (data: {
     activityId: string;
     finalBillAmount: number;
+    trfSubsidyAmount?: number;
     splitShortfallWithMembers?: boolean;
   }) => Promise<{ success: boolean; shortfall?: number; perMemberShare?: number }>;
   deletePlannedActivity: (activityId: string) => Promise<void>;
-  updateRSVP: (activityId: string, status: 'going' | 'maybe' | 'not_going') => void;
-  triggerCelebration: () => void;
+  updateRSVP: (activityId: string, status: 'going' | 'maybe' | 'not_going') => Promise<void> | void;
+  birthdayWishes: BirthdayWish[];
+  activeCelebration: BirthdayWish | null;
+  clearActiveCelebration: () => void;
+  celebrateBirthday: (recipientId: string, recipientName: string, message?: string) => Promise<void>;
+  triggerCelebration: (recipientId?: string, recipientName?: string, message?: string) => void;
   resetToDemoData: () => void;
 }
 
@@ -237,6 +243,11 @@ const TRFContext = createContext<TRFContextType | undefined>(undefined);
 const STORAGE_KEY = 'trf_portal_state_v2';
 const DEFAULT_MONTHLY_RATE = 1400; // 1400 PKR per head per month
 const DEFAULT_JOINING_FEE = 1000;  // 1000 PKR
+
+export const isValidUuid = (val?: string | null): boolean => {
+  if (!val) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+};
 
 export function TRFProvider({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -286,13 +297,27 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
   const [activeChatUserId, setActiveChatUserId] = useState<string | null>(null);
   const realtimeChatChannelRef = useRef<any>(null);
 
+  const WISHES_STORAGE_KEY = 'trf_birthday_wishes_v1';
+  const [birthdayWishes, setBirthdayWishes] = useState<BirthdayWish[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(WISHES_STORAGE_KEY);
+        if (saved) return JSON.parse(saved);
+      } catch {}
+    }
+    return [];
+  });
+  const [activeCelebration, setActiveCelebration] = useState<BirthdayWish | null>(null);
+  const celebrationChannelRef = useRef<any>(null);
+
   // 1. Initial Load: LocalStorage & Supabase Hydration
   useEffect(() => {
     async function loadData() {
       try {
+        let parsed: any = null;
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
-          const parsed = JSON.parse(saved);
+          parsed = JSON.parse(saved);
           if (parsed.members) setMembers(parsed.members);
           if (parsed.claims) setClaims(parsed.claims);
           if (parsed.transactions) setTransactions(parsed.transactions);
@@ -332,6 +357,8 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
               treatsRes,
               activitiesRes,
               dmsRes,
+              rsvpsRes,
+              venueVotesRes,
             ] = await Promise.all([
               supabase.from('audit_claims').select('*').order('created_at', { ascending: false }),
               supabase.from('transactions').select('*').order('date', { ascending: false }),
@@ -341,6 +368,8 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
               supabase.from('member_treat_events').select('*').order('date', { ascending: false }),
               supabase.from('planned_activities').select('*').order('date', { ascending: false }),
               supabase.from('direct_messages').select('*').order('created_at', { ascending: true }),
+              supabase.from('activity_rsvps').select('*'),
+              supabase.from('venue_votes').select('*'),
             ]);
 
             // 1. Transactions
@@ -452,18 +481,47 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
 
             // 4. Venues
             if (venuesRes.data !== null) {
-              const mappedVenues: VenuePlace[] = venuesRes.data.map((v) => ({
-                id: v.id,
-                name: v.name,
-                category: v.category,
-                location: v.location,
-                estimatedCostPerHead: Number(v.estimated_cost_per_head || 1500),
-                rating: Number(v.rating || 4.5),
-                votes: [],
-                suggestedBy: 'Team',
-                description: v.description || '',
-                status: v.status || 'wishlist',
-              }));
+              const votesList = venueVotesRes?.data || [];
+              const savedVenuesMap = new Map<string, string[]>();
+              if (parsed && Array.isArray(parsed.venues)) {
+                parsed.venues.forEach((pv: any) => {
+                  if (pv?.id && Array.isArray(pv?.votes)) {
+                    savedVenuesMap.set(pv.id, pv.votes);
+                  }
+                });
+              }
+
+              const mappedVenues: VenuePlace[] = venuesRes.data.map((v) => {
+                // Primary: votes from venue_votes table in Supabase
+                let venueVotes: string[] = votesList
+                  .filter((vote: any) => vote.venue_id === v.id)
+                  .map((vote: any) => vote.user_id);
+
+                // Secondary: if venue_votes table had no records for this venue, check if v.votes column exists
+                if (venueVotes.length === 0 && Array.isArray(v.votes)) {
+                  venueVotes = v.votes;
+                }
+
+                // Tertiary: fallback to cached votes from localStorage so user never loses votes on refresh
+                if (venueVotes.length === 0 && savedVenuesMap.has(v.id)) {
+                  venueVotes = savedVenuesMap.get(v.id) || [];
+                }
+
+                const suggester = mappedProfiles.find((m) => m.id === v.suggested_by);
+
+                return {
+                  id: v.id,
+                  name: v.name,
+                  category: v.category,
+                  location: v.location,
+                  estimatedCostPerHead: Number(v.estimated_cost_per_head || 1500),
+                  rating: Number(v.rating || 4.5),
+                  votes: venueVotes,
+                  suggestedBy: suggester ? suggester.name : (v.suggested_by || 'Team'),
+                  description: v.description || '',
+                  status: v.status || 'wishlist',
+                };
+              });
               setVenues(mappedVenues);
             }
 
@@ -501,20 +559,36 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
 
             // 7. Planned Activities
             if (activitiesRes.data !== null) {
-              const mappedActivities: PlannedActivity[] = activitiesRes.data.map((a) => ({
-                id: a.id,
-                title: a.title,
-                venueName: a.venue_name,
-                venueId: a.venue_id,
-                date: a.date,
-                time: a.time,
-                estimatedTotalBudget: Number(a.estimated_total_budget || 0),
-                trfContributionShare: Number(a.trf_contribution_share || 0),
-                personalContributionPerHead: Number(a.personal_contribution_per_head || 0),
-                status: a.status || 'voting',
-                rsvps: [],
-                description: a.description || '',
-              }));
+              const rsvpList = rsvpsRes?.data || [];
+              const mappedActivities: PlannedActivity[] = activitiesRes.data.map((a) => {
+                const activityRsvps = rsvpList
+                  .filter((r: any) => r.activity_id === a.id)
+                  .map((r: any) => {
+                    const matchedMem = mappedProfiles.find((m) => m.id === r.user_id);
+                    return {
+                      userId: r.user_id,
+                      userName: matchedMem ? matchedMem.name : 'Team Member',
+                      status: r.status as 'going' | 'maybe' | 'not_going',
+                    };
+                  });
+
+                return {
+                  id: a.id,
+                  title: a.title,
+                  venueName: a.venue_name,
+                  venueId: a.venue_id,
+                  date: a.date,
+                  time: a.time,
+                  estimatedTotalBudget: Number(a.estimated_total_budget || 0),
+                  trfContributionShare: Number(a.trf_contribution_share || 0),
+                  personalContributionPerHead: Number(a.personal_contribution_per_head || 0),
+                  status: a.status || 'voting',
+                  rsvps: activityRsvps,
+                  description: a.description || '',
+                  actualBillAmount: Number(a.actual_bill_amount || a.estimated_total_budget || 0),
+                  shortfallPerHead: Number(a.personal_contribution_per_head || 0),
+                };
+              });
               setPlannedActivities(mappedActivities);
             }
 
@@ -617,6 +691,16 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       console.warn('Failed to save direct messages to storage:', e);
     }
   }, [isLoaded, directMessages]);
+
+  // Save birthday wishes to localStorage
+  useEffect(() => {
+    if (!isLoaded) return;
+    try {
+      localStorage.setItem(WISHES_STORAGE_KEY, JSON.stringify(birthdayWishes));
+    } catch (e) {
+      console.warn('Failed to save birthday wishes to storage:', e);
+    }
+  }, [isLoaded, birthdayWishes]);
 
   // Cross-Tab & Multi-Window Instant Messaging Broadcast (0ms latency)
   useEffect(() => {
@@ -1127,8 +1211,10 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Profile Management (For all users on their own profile)
+  // Profile Management (For all users on their own profile, managers can edit any)
   const updateProfile = async (userId: string, data: Partial<Omit<UserProfile, 'id' | 'role'>>) => {
+    if (!isManager && userId !== currentUser.id) return;
+
     setMembers((prev) =>
       prev.map((m) => (m.id === userId ? { ...m, ...data } : m))
     );
@@ -1199,6 +1285,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
   };
 
   const toggleRole = () => {
+    if (!isManager) return;
     setMembers((prev) =>
       prev.map((m) =>
         m.id === currentUser.id
@@ -1208,20 +1295,208 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
-  const triggerCelebration = () => {
+  const fireBirthdayConfetti = () => {
     try {
+      // Left confetti burst
       confetti({
-        particleCount: 70,
-        spread: 60,
-        origin: { y: 0.6 },
-        colors: ['#10b981', '#06b6d4', '#8b5cf6', '#f59e0b'],
+        particleCount: 80,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.7 },
+        colors: ['#ec4899', '#8b5cf6', '#3b82f6', '#f59e0b', '#10b981'],
       });
+      // Right confetti burst
+      confetti({
+        particleCount: 80,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.7 },
+        colors: ['#ec4899', '#8b5cf6', '#3b82f6', '#f59e0b', '#10b981'],
+      });
+      // Center celebratory burst
+      setTimeout(() => {
+        confetti({
+          particleCount: 100,
+          spread: 100,
+          origin: { x: 0.5, y: 0.38 },
+          colors: ['#ec4899', '#f43f5e', '#a855f7', '#fbbf24', '#06b6d4'],
+        });
+      }, 200);
     } catch (e) {
       console.error(e);
     }
   };
 
-  const addTransaction = (data: {
+  const handleReceivedWish = (wish: BirthdayWish) => {
+    setBirthdayWishes((prev) => {
+      if (prev.some((w) => w.id === wish.id)) return prev;
+      return [wish, ...prev];
+    });
+
+    const isForMe =
+      wish.recipientId === currentUser.id ||
+      (currentUser.name && wish.recipientName.trim().toLowerCase() === currentUser.name.trim().toLowerCase());
+
+    if (isForMe && wish.senderId !== currentUser.id) {
+      setActiveCelebration(wish);
+      fireBirthdayConfetti();
+      addNotification({
+        title: '🎂 Birthday Celebration!',
+        message: `${wish.senderName} celebrated your birthday! "${wish.message || 'Happy Birthday!'}"`,
+        type: 'birthday',
+        targetTab: 'birthdays',
+        actionLabel: 'View Birthdays',
+      });
+    }
+  };
+
+  // Supabase Realtime & Cross-Tab Broadcast for Birthday Celebrations
+  useEffect(() => {
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        bc = new BroadcastChannel('trf_birthday_celebrations_v1');
+        bc.onmessage = (event) => {
+          if (event.data?.type === 'BIRTHDAY_WISH' && event.data.wish) {
+            handleReceivedWish(event.data.wish);
+          }
+        };
+      }
+    } catch {}
+
+    let channel: any = null;
+    if (isSupabaseConfigured && supabase) {
+      channel = supabase
+        .channel('trf_birthday_celebrations_realtime', {
+          config: { broadcast: { self: false } },
+        })
+        .on('broadcast', { event: 'birthday_celebrate' }, (payload) => {
+          const incomingWish = payload.payload as BirthdayWish;
+          if (incomingWish) {
+            handleReceivedWish(incomingWish);
+          }
+        })
+        .subscribe();
+      celebrationChannelRef.current = channel;
+    }
+
+    return () => {
+      bc?.close();
+      if (channel && supabase) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [isSupabaseConfigured, currentUser.id, currentUser.name]);
+
+  // Show active celebration if today is user's birthday and they received wishes today
+  useEffect(() => {
+    if (!currentUser?.birthDate) return;
+    const countdown = getBirthdayCountdown(currentUser.birthDate);
+    if (!countdown.isToday) return;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const seenKey = `trf_celebrated_${currentUser.id}_${todayStr}`;
+    if (typeof window !== 'undefined' && localStorage.getItem(seenKey)) return;
+
+    const todayWishes = birthdayWishes.filter((w) => {
+      const isForMe =
+        w.recipientId === currentUser.id ||
+        (currentUser.name && w.recipientName.trim().toLowerCase() === currentUser.name.trim().toLowerCase());
+      const wishDate = w.createdAt ? w.createdAt.split('T')[0] : '';
+      return isForMe && wishDate === todayStr;
+    });
+
+    if (todayWishes.length > 0) {
+      setActiveCelebration(todayWishes[0]);
+      fireBirthdayConfetti();
+      localStorage.setItem(seenKey, 'true');
+    }
+  }, [currentUser.id, currentUser.birthDate, birthdayWishes]);
+
+  const celebrateBirthday = async (
+    recipientId: string,
+    recipientName: string,
+    message?: string
+  ) => {
+    // 1. Sender celebratory feedback
+    fireBirthdayConfetti();
+
+    const newWish: BirthdayWish = {
+      id: `wish-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      recipientId,
+      recipientName,
+      senderId: currentUser.id,
+      senderName: currentUser.name,
+      senderAvatar: currentUser.avatarUrl,
+      message: message || 'Wishing you a fantastic Birthday! 🎉🎂',
+      createdAt: new Date().toISOString(),
+    };
+
+    // 2. Add to local state
+    setBirthdayWishes((prev) => [newWish, ...prev]);
+
+    // 3. Broadcast across tabs (instant)
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        const bc = new BroadcastChannel('trf_birthday_celebrations_v1');
+        bc.postMessage({ type: 'BIRTHDAY_WISH', wish: newWish });
+        setTimeout(() => bc.close(), 150);
+      }
+    } catch {}
+
+    // 4. Broadcast across network via Supabase Realtime (<50ms)
+    try {
+      if (celebrationChannelRef.current) {
+        celebrationChannelRef.current.send({
+          type: 'broadcast',
+          event: 'birthday_celebrate',
+          payload: newWish,
+        });
+      }
+    } catch (e) {
+      console.warn('Realtime celebration broadcast error:', e);
+    }
+
+    // 5. Gracefully persist in Supabase if birthday_wishes table exists (optional, no error if missing)
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('birthday_wishes').insert({
+          recipient_id: newWish.recipientId,
+          recipient_name: newWish.recipientName,
+          sender_id: newWish.senderId,
+          sender_name: newWish.senderName,
+          sender_avatar: newWish.senderAvatar,
+          message: newWish.message,
+        });
+      } catch {
+        // Table doesn't exist yet in production schema; safely ignore!
+      }
+    }
+  };
+
+  const triggerCelebration = (
+    recipientId?: string,
+    recipientName?: string,
+    message?: string
+  ) => {
+    if (recipientId && recipientName) {
+      celebrateBirthday(recipientId, recipientName, message);
+    } else {
+      fireBirthdayConfetti();
+    }
+  };
+
+  const clearActiveCelebration = () => {
+    if (activeCelebration) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      try {
+        localStorage.setItem(`trf_celebrated_${currentUser.id}_${todayStr}`, 'true');
+      } catch {}
+    }
+    setActiveCelebration(null);
+  };
+
+  const addTransaction = async (data: {
     title: string;
     description?: string;
     amount: number;
@@ -1230,15 +1505,17 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     date: string;
     relatedMemberId?: string;
   }) => {
+    if (!isManager) return;
+    const txUuid = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined;
     const newTx: Transaction = {
-      id: `tx-${Date.now()}`,
+      id: txUuid || `tx-${Date.now()}`,
       date: data.date,
       title: data.title,
       description: data.description || '',
       amount: data.amount,
       type: data.type,
       category: data.category,
-      loggedBy: currentUser.name,
+      loggedBy: currentUser.name || 'TRF Custodian',
       relatedMemberId: data.relatedMemberId,
       createdAt: new Date().toISOString(),
     };
@@ -1253,7 +1530,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         setMembers((prev) =>
           prev.map((m) => (m.id === targetMember.id ? { ...m, joiningFeeStatus: 'paid' } : m))
         );
-        if (isSupabaseConfigured && supabase) {
+        if (isSupabaseConfigured && supabase && isValidUuid(targetMember.id)) {
           supabase
             .from('profiles')
             .update({ joining_fee_status: 'paid' })
@@ -1263,22 +1540,40 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Async push to Supabase
+    // Persist to Supabase
     if (isSupabaseConfigured && supabase) {
-      supabase.from('transactions').insert([
-        {
+      try {
+        const payload: Record<string, any> = {
           title: data.title,
           description: data.description || '',
           amount: data.amount,
           type: data.type,
           category: data.category,
           date: data.date,
-          related_member_id: data.relatedMemberId || (members.find((m) => data.title.toLowerCase().includes(m.name.toLowerCase()))?.id || null),
+        };
+        if (txUuid) payload.id = txUuid;
+        if (isValidUuid(currentUser.id)) payload.logged_by = currentUser.id;
+
+        let validRelatedId: string | null = null;
+        if (isValidUuid(data.relatedMemberId)) {
+          validRelatedId = data.relatedMemberId || null;
+        } else if (data.relatedMemberId) {
+          const m = members.find((mem) => mem.id === data.relatedMemberId);
+          if (m && isValidUuid(m.id)) validRelatedId = m.id;
         }
-      ]).then(({ error }) => {
-        if (error) console.log('Supabase sync note:', error.message);
-      });
+        if (validRelatedId) payload.related_member_id = validRelatedId;
+
+        const { data: inserted, error } = await supabase.from('transactions').insert([payload]).select();
+        if (error) {
+          console.warn('Supabase transaction insert note:', error.message);
+        } else if (inserted && inserted[0]) {
+          newTx.id = inserted[0].id;
+        }
+      } catch (e) {
+        console.warn('Supabase transaction exception:', e);
+      }
     }
+    return newTx;
   };
 
   const deleteTransaction = (id: string) => {
@@ -1296,6 +1591,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     claimRefNumber?: string;
     auditNotes?: string;
   }) => {
+    if (!isManager) return;
     const totalAmount = data.headcount * monthlyPerHeadRate;
     const newClaim: AuditClaim = {
       id: `claim-${Date.now()}`,
@@ -1610,7 +1906,8 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     details: string;
     amount: number;
   }) => {
-    const member = members.find((m) => m.id === data.memberId) || currentUser;
+    const targetMemberId = isManager ? data.memberId : currentUser.id;
+    const member = members.find((m) => m.id === targetMemberId) || currentUser;
     const newEvent: MemberTreatEvent = {
       id: `treat-${Date.now()}`,
       memberId: member.id,
@@ -1639,7 +1936,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const collectTreatPayment = (treatId: string) => {
+  const collectTreatPayment = async (treatId: string) => {
     if (!isManager) return;
     const treat = treatEvents.find((t) => t.id === treatId);
     if (!treat || treat.status === 'collected') return;
@@ -1655,29 +1952,48 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     );
 
     if (isSupabaseConfigured && supabase) {
-      supabase
-        .from('member_treat_events')
-        .update({ status: 'collected', collected_date: collectedDate })
-        .eq('id', treatId)
-        .then();
+      try {
+        if (isValidUuid(treatId)) {
+          await supabase
+            .from('member_treat_events')
+            .update({ status: 'collected', collected_date: collectedDate })
+            .eq('id', treatId);
+        } else {
+          await supabase
+            .from('member_treat_events')
+            .update({ status: 'collected', collected_date: collectedDate })
+            .eq('rule_title', treat.ruleTitle);
+        }
+      } catch (err) {
+        console.warn('Supabase treat collection note:', err);
+      }
     }
 
-    addTransaction({
-      title: `${treat.ruleTitle} - ${treat.memberName}`,
-      description: treat.details,
-      amount: treat.amount,
-      type: 'inflow',
-      category: treat.ruleTitle.includes('Joining') ? 'joining_fee' : 'treat_event',
-      date: collectedDate,
-      relatedMemberId: treat.memberId,
-    });
+    const isOutingShare = treat.ruleTitle.toLowerCase().includes('outing');
+
+    // If it's a general treat milestone or joining fee, the money enters the TRF pool as an inflow!
+    // But if it's an Outing Share, that was personal out-of-pocket cash paid by the person at the counter.
+    // It is a personal reimbursement to that person and does NOT contribute to TRF fund inflow!
+    if (!isOutingShare) {
+      await addTransaction({
+        title: `${treat.ruleTitle} - ${treat.memberName}`,
+        description: treat.details,
+        amount: treat.amount,
+        type: 'inflow',
+        category: treat.ruleTitle.includes('Joining') ? 'joining_fee' : 'treat_event',
+        date: collectedDate,
+        relatedMemberId: treat.memberId,
+      });
+    }
 
     addNotification({
-      title: 'Contribution Collected',
-      message: `Collected ${formatPKR(treat.amount)} for ${treat.ruleTitle} from ${treat.memberName}.`,
+      title: isOutingShare ? 'Outing Share Reimbursed' : 'Contribution Collected',
+      message: isOutingShare
+        ? `Outing share of ${formatPKR(treat.amount)} collected from ${treat.memberName} (Reimbursement to counter payer).`
+        : `Collected ${formatPKR(treat.amount)} for ${treat.ruleTitle} from ${treat.memberName}.`,
       type: 'due',
-      targetTab: 'ledger',
-      actionLabel: 'View Funds',
+      targetTab: isOutingShare ? 'activities-venues' : 'ledger',
+      actionLabel: isOutingShare ? 'View Outings' : 'View Funds',
     });
 
     triggerCelebration();
@@ -1694,6 +2010,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       date?: string;
     }
   ) => {
+    if (!isManager) return;
     setTreatEvents((prev) =>
       prev.map((t) => {
         if (t.id === treatId) {
@@ -1711,15 +2028,18 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
           };
 
           if (data.status === 'collected' && t.status !== 'collected') {
-            addTransaction({
-              title: `${updated.ruleTitle} - ${updated.memberName}`,
-              description: updated.details,
-              amount: updated.amount,
-              type: 'inflow',
-              category: updated.ruleTitle.includes('Joining') ? 'joining_fee' : 'treat_event',
-              date: new Date().toISOString().split('T')[0],
-              relatedMemberId: updated.memberId,
-            });
+            const isOutingShare = updated.ruleTitle.toLowerCase().includes('outing');
+            if (!isOutingShare) {
+              addTransaction({
+                title: `${updated.ruleTitle} - ${updated.memberName}`,
+                description: updated.details,
+                amount: updated.amount,
+                type: 'inflow',
+                category: updated.ruleTitle.includes('Joining') ? 'joining_fee' : 'treat_event',
+                date: new Date().toISOString().split('T')[0],
+                relatedMemberId: updated.memberId,
+              });
+            }
             triggerCelebration();
           }
 
@@ -1741,6 +2061,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteTreatEvent = (treatId: string) => {
+    if (!isManager) return;
     setTreatEvents((prev) => prev.filter((t) => t.id !== treatId));
     if (isSupabaseConfigured && supabase) {
       supabase.from('member_treat_events').delete().eq('id', treatId).then();
@@ -1754,6 +2075,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     icon?: string;
     isMandatory: boolean;
   }) => {
+    if (!isManager) return;
     const newRule: ContributionRule = {
       id: `rule-${Date.now()}`,
       title: data.title,
@@ -1789,6 +2111,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       isMandatory?: boolean;
     }
   ) => {
+    if (!isManager) return;
     setRules((prev) =>
       prev.map((r) => {
         if (r.id === ruleId) {
@@ -1817,6 +2140,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteRule = (ruleId: string) => {
+    if (!isManager) return;
     setRules((prev) => prev.filter((r) => r.id !== ruleId));
     if (isSupabaseConfigured && supabase) {
       supabase.from('contribution_rules').delete().eq('id', ruleId).then();
@@ -1827,6 +2151,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     monthlyPerHeadRate?: number;
     defaultJoiningFee?: number;
   }) => {
+    if (!isManager) return;
     if (rates.monthlyPerHeadRate !== undefined) {
       setMonthlyPerHeadRate(rates.monthlyPerHeadRate);
     }
@@ -1853,6 +2178,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
             estimated_cost_per_head: data.estimatedCostPerHead,
             description: data.description,
             status: 'wishlist',
+            suggested_by: isValidUuid(currentUser.id) ? currentUser.id : null,
           }
         ]).select();
         if (inserted && inserted[0]) {
@@ -1877,6 +2203,16 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       status: 'wishlist',
     };
     setVenues((prev) => [newVenue, ...prev]);
+
+    if (isSupabaseConfigured && supabase && isValidUuid(newId) && isValidUuid(currentUser.id)) {
+      try {
+        await supabase.from('venue_votes').insert([
+          { venue_id: newId, user_id: currentUser.id }
+        ]);
+      } catch (e) {
+        console.warn('Supabase initial venue vote note:', e);
+      }
+    }
   };
 
   const updateVenue = async (
@@ -1891,6 +2227,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       rating?: number;
     }
   ) => {
+    if (!isManager) return;
     setVenues((prev) =>
       prev.map((v) => {
         if (v.id === venueId) {
@@ -1927,6 +2264,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteVenue = async (venueId: string) => {
+    if (!isManager) return;
     setVenues((prev) => prev.filter((v) => v.id !== venueId));
     if (isSupabaseConfigured && supabase) {
       try {
@@ -1937,19 +2275,48 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const toggleVenueVote = (venueId: string) => {
+  const toggleVenueVote = async (venueId: string) => {
+    if (!currentUser?.id) return;
+    const venue = venues.find((v) => v.id === venueId);
+    if (!venue) return;
+
+    const currentVotes = venue.votes || [];
+    const hasVoted = currentVotes.includes(currentUser.id) || (currentUser.name && currentVotes.includes(currentUser.name));
+    const newVotes = hasVoted
+      ? currentVotes.filter((id) => id !== currentUser.id && id !== currentUser.name)
+      : [...currentVotes, currentUser.id];
+
+    // 1. Immediate optimistic UI update
     setVenues((prev) =>
-      prev.map((v) => {
-        if (v.id === venueId) {
-          const hasVoted = v.votes.includes(currentUser.id);
-          const newVotes = hasVoted
-            ? v.votes.filter((id) => id !== currentUser.id)
-            : [...v.votes, currentUser.id];
-          return { ...v, votes: newVotes };
-        }
-        return v;
-      })
+      prev.map((v) => (v.id === venueId ? { ...v, votes: newVotes } : v))
     );
+
+    // 2. Persist to Supabase venue_votes
+    if (isSupabaseConfigured && supabase) {
+      try {
+        if (isValidUuid(venueId) && isValidUuid(currentUser.id)) {
+          if (hasVoted) {
+            const { error: delErr } = await supabase
+              .from('venue_votes')
+              .delete()
+              .eq('venue_id', venueId)
+              .eq('user_id', currentUser.id);
+            if (delErr) {
+              console.warn('Supabase venue vote delete note:', delErr.message);
+            }
+          } else {
+            const { error: insErr } = await supabase
+              .from('venue_votes')
+              .insert([{ venue_id: venueId, user_id: currentUser.id }]);
+            if (insErr) {
+              console.warn('Supabase venue vote insert note:', insErr.message);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Supabase venue vote error:', err);
+      }
+    }
   };
 
   const createPlannedActivity = async (data: {
@@ -1962,6 +2329,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     trfContributionShare: number;
     description: string;
   }) => {
+    if (!isManager) return;
     const remainingBudget = Math.max(0, data.estimatedTotalBudget - data.trfContributionShare);
     const personalShare = activeHeadcount > 0 ? Math.round(remainingBudget / activeHeadcount) : 0;
 
@@ -2026,6 +2394,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
       description?: string;
     }
   ) => {
+    if (!isManager) return;
     setPlannedActivities((prev) =>
       prev.map((act) => {
         if (act.id === activityId) {
@@ -2082,83 +2451,71 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
   const completePlannedActivity = async (data: {
     activityId: string;
     finalBillAmount: number;
+    trfSubsidyAmount?: number;
     splitShortfallWithMembers?: boolean;
   }): Promise<{ success: boolean; shortfall?: number; perMemberShare?: number }> => {
+    if (!isManager) return { success: false };
     const act = plannedActivities.find((a) => a.id === data.activityId);
     if (!act) return { success: false };
 
     const bill = Math.max(0, Number(data.finalBillAmount || 0));
-    const previousBalance = currentBalance;
-    const hasShortfall = bill > previousBalance;
-    const shortfall = hasShortfall ? bill - previousBalance : 0;
+    const subsidy = data.trfSubsidyAmount !== undefined
+      ? Math.max(0, Number(data.trfSubsidyAmount))
+      : Math.min(bill, currentBalance);
+    const remainingMemberShare = Math.max(0, bill - subsidy);
 
     const activeMembers = members.filter((m) => m.isActive);
     const memberCount = Math.max(1, activeMembers.length);
-    const perMemberShare = hasShortfall && data.splitShortfallWithMembers
-      ? Math.ceil(shortfall / memberCount)
-      : undefined;
+    const perMemberShare = remainingMemberShare > 0 && (data.splitShortfallWithMembers ?? true)
+      ? Math.ceil(remainingMemberShare / memberCount)
+      : 0;
 
-    // 1. Deduct bill amount from pool by recording an Outflow Transaction
-    const txId = `tx-outing-${Date.now()}`;
     const today = new Date().toISOString().split('T')[0];
-    const newTx: Transaction = {
-      id: txId,
-      title: `Outing Settlement: ${act.title}`,
-      description: `Settled outing bill at ${act.venueName}. Total bill: PKR ${bill.toLocaleString()}${hasShortfall && data.splitShortfallWithMembers ? ` (Shortfall of PKR ${shortfall.toLocaleString()} split among ${memberCount} members @ PKR ${perMemberShare?.toLocaleString()}/head)` : ''}`,
-      amount: bill,
-      type: 'outflow',
-      category: 'activity_outing',
-      date: today,
-      loggedBy: currentUser.name || 'TRF Custodian',
-      createdAt: new Date().toISOString(),
-    };
 
-    setTransactions((prev) => [newTx, ...prev]);
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        supabase.from('transactions').insert([{
-          id: txId,
-          title: newTx.title,
-          description: newTx.description,
-          amount: newTx.amount,
-          type: 'outflow',
-          category: 'activity_outing',
-          date: today,
-        }]).then();
-      } catch (e) {
-        console.warn('Supabase outing tx note:', e);
-      }
+    // 1. Deduct TRF subsidy from pool by recording an Outflow Transaction if subsidy > 0
+    if (subsidy > 0) {
+      await addTransaction({
+        title: `Outing Settlement: ${act.title}`,
+        description: `Settled bill at ${act.venueName}. Total bill was PKR ${bill.toLocaleString()} (TRF Fund Contribution: PKR ${subsidy.toLocaleString()}${remainingMemberShare > 0 ? `, Member Out-of-pocket Share: PKR ${remainingMemberShare.toLocaleString()}` : ''})`,
+        amount: subsidy,
+        type: 'outflow',
+        category: 'activity_outing',
+        date: today,
+      });
     }
 
-    // 2. If shortfall and option checked, equally divide remaining amount to all members as pending dues
-    if (hasShortfall && data.splitShortfallWithMembers && perMemberShare) {
-      const newDues: MemberTreatEvent[] = activeMembers.map((m, idx) => ({
-        id: `due-outing-${Date.now()}-${idx}`,
+    // 2. Equally divide remaining member share across active members as pending dues
+    let newDues: MemberTreatEvent[] = [];
+    if (remainingMemberShare > 0 && (data.splitShortfallWithMembers ?? true) && perMemberShare > 0) {
+      newDues = activeMembers.map((m, idx) => ({
+        id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `due-outing-${Date.now()}-${idx}`,
         memberId: m.id,
         memberName: m.name,
-        ruleTitle: `Outing Shortfall Share: ${act.title}`,
-        details: `Shortfall recovery for ${act.venueName} (Pool was: PKR ${previousBalance.toLocaleString()}, Bill: PKR ${bill.toLocaleString()})`,
+        ruleTitle: `Outing Share: ${act.title}`,
+        details: `Member share for ${act.venueName} (Total Bill: PKR ${bill.toLocaleString()}, TRF Subsidy: PKR ${subsidy.toLocaleString()}, Member Share: PKR ${perMemberShare.toLocaleString()})`,
         amount: perMemberShare,
         date: today,
-        status: 'pending',
+        status: 'pending' as const,
       }));
 
       setTreatEvents((prev) => [...newDues, ...prev]);
 
       if (isSupabaseConfigured && supabase) {
         try {
-          const duesPayload = newDues.map((d) => ({
-            id: d.id,
-            member_id: d.memberId,
-            member_name: d.memberName,
-            rule_title: d.ruleTitle,
-            details: d.details,
-            amount: d.amount,
-            date: d.date,
-            status: 'pending',
-          }));
-          supabase.from('member_treat_events').insert(duesPayload).then();
+          const duesPayload = newDues
+            .filter((d) => isValidUuid(d.memberId))
+            .map((d) => ({
+              id: isValidUuid(d.id) ? d.id : undefined,
+              member_id: d.memberId,
+              rule_title: d.ruleTitle,
+              details: d.details,
+              amount: d.amount,
+              date: d.date,
+              status: 'pending',
+            }));
+          if (duesPayload.length > 0) {
+            await supabase.from('member_treat_events').insert(duesPayload);
+          }
         } catch (e) {
           console.warn('Supabase outing dues note:', e);
         }
@@ -2173,6 +2530,9 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
               ...a,
               status: 'completed',
               actualBillAmount: bill,
+              estimatedTotalBudget: bill,
+              trfContributionShare: subsidy,
+              personalContributionPerHead: perMemberShare,
               shortfallPerHead: perMemberShare,
             }
           : a
@@ -2181,9 +2541,17 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
 
     if (isSupabaseConfigured && supabase) {
       try {
-        supabase.from('planned_activities').update({
+        const updatePayload = {
           status: 'completed',
-        }).eq('id', data.activityId).then();
+          estimated_total_budget: bill,
+          trf_contribution_share: subsidy,
+          personal_contribution_per_head: perMemberShare,
+        };
+        if (isValidUuid(data.activityId)) {
+          await supabase.from('planned_activities').update(updatePayload).eq('id', data.activityId);
+        } else {
+          await supabase.from('planned_activities').update(updatePayload).eq('title', act.title);
+        }
       } catch (e) {
         console.warn('Supabase outing status note:', e);
       }
@@ -2191,7 +2559,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
 
     addNotification({
       title: `Outing Settled: ${act.title}`,
-      message: `Bill of ${formatPKR(bill)} settled and deducted from TRF pool.${hasShortfall && data.splitShortfallWithMembers ? ` Remaining ${formatPKR(shortfall)} divided across active members (${formatPKR(perMemberShare || 0)}/head).` : ''}`,
+      message: `Bill of PKR ${bill.toLocaleString()} settled. TRF subsidy: PKR ${subsidy.toLocaleString()}.${remainingMemberShare > 0 ? ` Remaining PKR ${remainingMemberShare.toLocaleString()} split across active members (PKR ${perMemberShare.toLocaleString()}/head).` : ''}`,
       type: 'outing',
       targetTab: 'activities-venues',
       actionLabel: 'View Outing',
@@ -2201,12 +2569,13 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
 
     return {
       success: true,
-      shortfall: hasShortfall ? shortfall : 0,
+      shortfall: remainingMemberShare,
       perMemberShare,
     };
   };
 
   const deletePlannedActivity = async (activityId: string) => {
+    if (!isManager) return;
     setPlannedActivities((prev) => prev.filter((act) => act.id !== activityId));
     if (isSupabaseConfigured && supabase) {
       try {
@@ -2217,21 +2586,51 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateRSVP = (activityId: string, status: 'going' | 'maybe' | 'not_going') => {
+  const updateRSVP = async (activityId: string, status: 'going' | 'maybe' | 'not_going') => {
     setPlannedActivities((prev) =>
       prev.map((act) => {
         if (act.id === activityId) {
-          const updatedRSVPs = act.rsvps.map((r) =>
-            r.userId === currentUser.id ? { ...r, status } : r
+          const currentList = act.rsvps || [];
+          const existingIdx = currentList.findIndex(
+            (r) => r.userId === currentUser.id || (currentUser.name && r.userName === currentUser.name)
           );
+          let updatedRSVPs;
+          if (existingIdx >= 0) {
+            updatedRSVPs = currentList.map((r, idx) =>
+              idx === existingIdx
+                ? { ...r, status, userId: currentUser.id, userName: currentUser.name || r.userName }
+                : r
+            );
+          } else {
+            updatedRSVPs = [
+              ...currentList,
+              { userId: currentUser.id, userName: currentUser.name || 'Team Member', status },
+            ];
+          }
           return { ...act, rsvps: updatedRSVPs };
         }
         return act;
       })
     );
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('activity_rsvps').upsert(
+          {
+            activity_id: activityId,
+            user_id: currentUser.id,
+            status,
+          },
+          { onConflict: 'activity_id,user_id' }
+        );
+      } catch (err) {
+        console.warn('Supabase RSVP upsert note:', err);
+      }
+    }
   };
 
   const resetToDemoData = () => {
+    if (!isManager) return;
     setMembers(INITIAL_MEMBERS);
     setClaims(INITIAL_CLAIMS);
     setTransactions(INITIAL_TRANSACTIONS);
@@ -2316,6 +2715,11 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
         deleteNotification,
         clearAllNotifications,
         addNotification,
+        // Birthdays & Celebrations
+        birthdayWishes,
+        activeCelebration,
+        clearActiveCelebration,
+        celebrateBirthday,
         triggerCelebration,
         resetToDemoData,
       }}

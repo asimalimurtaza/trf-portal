@@ -21,7 +21,7 @@ interface SubmitClaimModalProps {
 }
 
 export function SubmitClaimModal({ isOpen, onClose }: SubmitClaimModalProps) {
-  const { createAuditClaim, activeHeadcount, monthlyPerHeadRate } = useTRF();
+  const { createAuditClaim, activeHeadcount, monthlyPerHeadRate, isManager } = useTRF();
 
   const [monthYear, setMonthYear] = useState('');
   const [headcount, setHeadcount] = useState<number>(activeHeadcount);
@@ -37,11 +37,13 @@ export function SubmitClaimModal({ isOpen, onClose }: SubmitClaimModalProps) {
     }
   }, [isOpen, activeHeadcount]);
 
+  if (!isOpen || !isManager) return null;
+
   const totalCalculated = (headcount || 0) * monthlyPerHeadRate;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!monthYear.trim() || headcount < 1) return;
+    if (!isManager || !monthYear.trim() || headcount < 1) return;
 
     createAuditClaim({
       monthYear: monthYear.trim(),

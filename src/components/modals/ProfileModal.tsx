@@ -114,30 +114,57 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         </div>
 
         {/* Dues & TRF Status Summary */}
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="p-2.5 rounded-lg border border-border bg-muted/20">
-            <div className="text-[10px] text-muted-foreground">Joining Fee Status</div>
-            <div className="mt-1 flex items-center gap-1.5 font-medium">
-              {currentUser.joiningFeeStatus === 'paid' ? (
-                <>
-                  <Check className="h-3.5 w-3.5 text-zinc-600 dark:text-zinc-400" />
-                  <span>Paid ({formatPKR(currentUser.joiningFeeAmount)})</span>
-                </>
-              ) : (
-                <>
-                  <Clock className="h-3.5 w-3.5 text-zinc-500" />
-                  <span>Pending ({formatPKR(currentUser.joiningFeeAmount)})</span>
-                </>
-              )}
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="p-2.5 rounded-lg border border-border bg-muted/20">
+              <div className="text-[10px] text-muted-foreground">Joining Fee Status</div>
+              <div className="mt-1 flex items-center gap-1.5 font-medium">
+                {currentUser.joiningFeeStatus === 'paid' ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-zinc-600 dark:text-zinc-400" />
+                    <span>Paid ({formatPKR(currentUser.joiningFeeAmount)})</span>
+                  </>
+                ) : (
+                  <>
+                    <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                    <span className="text-amber-700 dark:text-amber-300">Pending ({formatPKR(currentUser.joiningFeeAmount)})</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-lg border border-border bg-muted/20">
+              <div className="text-[10px] text-muted-foreground">Outstanding Dues</div>
+              <div className="mt-1 font-mono font-medium">
+                {myTreats.filter((t) => t.status === 'pending').reduce((sum, t) => sum + (t.amount || 0), 0) + (currentUser.joiningFeeStatus === 'pending' ? (currentUser.joiningFeeAmount || 1000) : 0) > 0 ? (
+                  <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                    {formatPKR(myTreats.filter((t) => t.status === 'pending').reduce((sum, t) => sum + (t.amount || 0), 0) + (currentUser.joiningFeeStatus === 'pending' ? (currentUser.joiningFeeAmount || 1000) : 0))}
+                  </span>
+                ) : (
+                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                    0 PKR (Settled)
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="p-2.5 rounded-lg border border-border bg-muted/20">
-            <div className="text-[10px] text-muted-foreground">Declared Treats</div>
-            <div className="mt-1 font-mono font-medium">
-              {myTreats.length} {myTreats.length === 1 ? 'Event' : 'Events'}
+          {/* Itemized dues if any */}
+          {myTreats.filter((t) => t.status === 'pending').length > 0 && (
+            <div className="p-2.5 rounded-lg border border-amber-300 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 text-xs space-y-1.5">
+              <div className="text-[11px] font-semibold text-amber-900 dark:text-amber-200">
+                Pending Treats & Outing Shares:
+              </div>
+              <div className="space-y-1 max-h-24 overflow-y-auto">
+                {myTreats.filter((t) => t.status === 'pending').map((t) => (
+                  <div key={t.id} className="flex items-center justify-between text-[11px] text-amber-800 dark:text-amber-300">
+                    <span className="truncate pr-2">• {t.ruleTitle}</span>
+                    <span className="font-mono font-medium shrink-0">{formatPKR(t.amount)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Profile Edit Form */}

@@ -24,7 +24,7 @@ interface EditClaimModalProps {
 }
 
 export function EditClaimModal({ claim, isOpen, onClose }: EditClaimModalProps) {
-  const { updateClaim, deleteClaim, monthlyPerHeadRate } = useTRF();
+  const { updateClaim, deleteClaim, monthlyPerHeadRate, isManager } = useTRF();
 
   const [monthYear, setMonthYear] = useState('');
   const [headcount, setHeadcount] = useState(1);
@@ -42,12 +42,13 @@ export function EditClaimModal({ claim, isOpen, onClose }: EditClaimModalProps) 
     }
   }, [claim]);
 
-  if (!claim) return null;
+  if (!claim || !isManager) return null;
 
   const totalCalculated = headcount * monthlyPerHeadRate;
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isManager) return;
     updateClaim(claim.id, {
       monthYear: monthYear.trim(),
       headcount,
@@ -59,6 +60,7 @@ export function EditClaimModal({ claim, isOpen, onClose }: EditClaimModalProps) 
   };
 
   const handleDelete = () => {
+    if (!isManager) return;
     if (confirm(`Are you sure you want to delete the claim request for ${claim.monthYear}?`)) {
       deleteClaim(claim.id);
       onClose();

@@ -21,7 +21,7 @@ interface AddTransactionModalProps {
 }
 
 export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProps) {
-  const { addTransaction, members } = useTRF();
+  const { addTransaction, members, isManager } = useTRF();
 
   const [type, setType] = useState<'outflow' | 'inflow'>('outflow');
   const [category, setCategory] = useState<TransactionCategory>('team_dinner');
@@ -35,9 +35,11 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
     setDate(new Date().toISOString().split('T')[0]);
   }, []);
 
+  if (!isOpen || !isManager) return null;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !amount) return;
+    if (!isManager || !title.trim() || !amount) return;
 
     addTransaction({
       title: title.trim(),
