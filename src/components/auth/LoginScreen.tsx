@@ -117,7 +117,7 @@ export function LoginScreen() {
             <Wallet className="h-5 w-5" />
           </div>
           <h1 className="text-xl font-bold tracking-tight">
-            Vicenna TRF Portal
+            TRF Portal
           </h1>
           <p className="text-xs text-muted-foreground max-w-xs mx-auto">
             Team Recreational Funds management system
@@ -160,7 +160,7 @@ export function LoginScreen() {
                     id="login-email"
                     type="email"
                     required
-                    placeholder="name@company.com"
+                    placeholder="name@techlogix.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     autoComplete="email"
@@ -212,7 +212,7 @@ export function LoginScreen() {
                     id="reset-email"
                     type="email"
                     required
-                    placeholder="name@company.com"
+                    placeholder="name@techlogix.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />

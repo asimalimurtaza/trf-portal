@@ -169,10 +169,10 @@ export function Sidebar({
                 }`}
               >
                 <span className="font-semibold text-xs tracking-tight text-zinc-900 dark:text-zinc-50 truncate">
-                  Vicenna TRF
+                  TRF Portal
                 </span>
                 <span className="text-[10px] text-zinc-400 truncate">
-                  Recreational Fund
+                  Team Recreational Funds Management System
                 </span>
               </div>
             </div>
@@ -346,7 +346,7 @@ export function Sidebar({
                     </div>
                     <div>
                       <h3 className="font-semibold text-xs tracking-tight text-zinc-900 dark:text-zinc-50">
-                        Vicenna TRF
+                        TRF Portal
                       </h3>
                       <p className="text-[10px] text-zinc-400">Team Portal</p>
                     </div>
