@@ -20,7 +20,7 @@ interface AddTreatModalProps {
 }
 
 export function AddTreatModal({ isOpen, onClose }: AddTreatModalProps) {
-  const { logTreatEvent, members, rules, currentUser } = useTRF();
+  const { logTreatEvent, members, rules, currentUser, isManager } = useTRF();
 
   const [memberId, setMemberId] = useState(currentUser.id);
   const [ruleTitle, setRuleTitle] = useState('');
@@ -50,7 +50,7 @@ export function AddTreatModal({ isOpen, onClose }: AddTreatModalProps) {
     if (!details.trim() || !amount) return;
 
     logTreatEvent({
-      memberId,
+      memberId: isManager ? memberId : currentUser.id,
       ruleTitle,
       details: details.trim(),
       amount: parseFloat(amount),
@@ -72,18 +72,27 @@ export function AddTreatModal({ isOpen, onClose }: AddTreatModalProps) {
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div className="space-y-1.5">
             <Label htmlFor="treat-member">Celebrating Member *</Label>
-            <select
-              id="treat-member"
-              value={memberId}
-              onChange={(e) => setMemberId(e.target.value)}
-              className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              {members.map((m) => (
-                <option key={m.id} value={m.id} className="bg-background">
-                  {m.name} ({m.designation})
-                </option>
-              ))}
-            </select>
+            {isManager ? (
+              <select
+                id="treat-member"
+                value={memberId}
+                onChange={(e) => setMemberId(e.target.value)}
+                className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                {members.map((m) => (
+                  <option key={m.id} value={m.id} className="bg-background">
+                    {m.name} ({m.designation})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Input
+                id="treat-member"
+                disabled
+                value={`${currentUser.name} (${currentUser.designation})`}
+                className="h-9 text-xs bg-muted/40 cursor-not-allowed"
+              />
+            )}
           </div>
 
           <div className="space-y-1.5">

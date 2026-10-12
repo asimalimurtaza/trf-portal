@@ -58,7 +58,7 @@ export function EditActivityModal({ activity, isOpen, onClose }: EditActivityMod
     }
   }, [activity]);
 
-  if (!activity) return null;
+  if (!activity || !isManager) return null;
 
   const totalBill = parseFloat(estimatedTotalBudget) || 0;
   const trfShare = parseFloat(trfContributionShare) || 0;
@@ -67,14 +67,15 @@ export function EditActivityModal({ activity, isOpen, onClose }: EditActivityMod
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !venueName.trim() || !date) return;
+    if (!isManager || !title.trim() || !venueName.trim() || !date) return;
 
     setIsSubmitting(true);
     if (status === 'completed' && activity.status !== 'completed') {
       await completePlannedActivity({
         activityId: activity.id,
         finalBillAmount: totalBill,
-        splitShortfallWithMembers: totalBill > currentBalance ? splitDeficit : false,
+        trfSubsidyAmount: trfShare,
+        splitShortfallWithMembers: remainingShare > 0 ? splitDeficit : false,
       });
       await updatePlannedActivity(activity.id, {
         title: title.trim(),
@@ -100,6 +101,7 @@ export function EditActivityModal({ activity, isOpen, onClose }: EditActivityMod
   };
 
   const handleDelete = async () => {
+    if (!isManager) return;
     if (window.confirm(`Are you sure you want to delete planned outing "${activity.title}"?`)) {
       setIsSubmitting(true);
       await deletePlannedActivity(activity.id);

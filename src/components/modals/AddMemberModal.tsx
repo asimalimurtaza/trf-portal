@@ -21,7 +21,7 @@ interface AddMemberModalProps {
 }
 
 export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
-  const { addMember, defaultJoiningFee } = useTRF();
+  const { addMember, defaultJoiningFee, isManager } = useTRF();
 
   const [name, setName] = useState('');
   const [employeeId, setEmployeeId] = useState('');
@@ -42,6 +42,8 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
     }
   }, [isOpen, defaultJoiningFee]);
 
+  if (!isOpen || !isManager) return null;
+
   const generateRandomPassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$';
     let pwd = '';
@@ -53,6 +55,7 @@ export function AddMemberModal({ isOpen, onClose }: AddMemberModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isManager) return;
     if (!name.trim() || !email.trim() || !employeeId.trim()) {
       setErrorMsg('Name, Email, and Employee ID are required.');
       return;

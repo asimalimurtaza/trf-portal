@@ -56,7 +56,7 @@ export function AddEditRuleModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !suggestedAmount) return;
+    if (!isManager || !title.trim() || !suggestedAmount) return;
 
     const amountNum = Math.max(0, parseFloat(suggestedAmount) || 0);
 
@@ -81,12 +81,14 @@ export function AddEditRuleModal({
   };
 
   const handleDelete = () => {
-    if (!ruleToEdit) return;
+    if (!isManager || !ruleToEdit) return;
     deleteRule(ruleToEdit.id);
     onClose();
   };
 
   const parsedAmount = parseFloat(suggestedAmount) || 0;
+
+  if (!isOpen || !isManager) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

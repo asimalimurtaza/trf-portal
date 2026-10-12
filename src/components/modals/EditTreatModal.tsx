@@ -23,7 +23,7 @@ interface EditTreatModalProps {
 }
 
 export function EditTreatModal({ treat, isOpen, onClose }: EditTreatModalProps) {
-  const { updateTreatEvent, deleteTreatEvent, members, rules } = useTRF();
+  const { updateTreatEvent, deleteTreatEvent, members, rules, isManager } = useTRF();
 
   const [memberId, setMemberId] = useState('');
   const [ruleTitle, setRuleTitle] = useState('');
@@ -43,7 +43,7 @@ export function EditTreatModal({ treat, isOpen, onClose }: EditTreatModalProps) 
     }
   }, [treat]);
 
-  if (!treat) return null;
+  if (!treat || !isManager) return null;
 
   const handleRuleChange = (title: string) => {
     setRuleTitle(title);
@@ -55,6 +55,7 @@ export function EditTreatModal({ treat, isOpen, onClose }: EditTreatModalProps) 
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isManager) return;
     updateTreatEvent(treat.id, {
       memberId,
       ruleTitle,
@@ -67,6 +68,7 @@ export function EditTreatModal({ treat, isOpen, onClose }: EditTreatModalProps) 
   };
 
   const handleDelete = () => {
+    if (!isManager) return;
     if (confirm(`Delete the treat request for "${treat.ruleTitle}" by ${treat.memberName}?`)) {
       deleteTreatEvent(treat.id);
       onClose();

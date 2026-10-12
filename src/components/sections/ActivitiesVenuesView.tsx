@@ -153,8 +153,9 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
         <TabsContent value="venues" className="mt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {venues.map((venue) => {
-              const hasVoted = venue.votes.includes(currentUser.id);
-              const canEdit = isManager || venue.suggestedBy === currentUser.name;
+              const votesList = Array.isArray(venue.votes) ? venue.votes : [];
+              const hasVoted = votesList.includes(currentUser.id) || (Boolean(currentUser.name) && votesList.includes(currentUser.name));
+              const canEdit = isManager;
 
               return (
                 <Card key={venue.id} className="flex flex-col justify-between">
@@ -215,10 +216,10 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
                         variant={hasVoted ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => toggleVenueVote(venue.id)}
-                        className="gap-1.5 h-8 text-xs"
+                        className="gap-1.5 h-8 text-xs cursor-pointer"
                       >
                         <ThumbsUp className={`h-3 w-3 ${hasVoted ? 'fill-current' : ''}`} />
-                        <span>{venue.votes.length} {venue.votes.length === 1 ? 'Vote' : 'Votes'}</span>
+                        <span>{votesList.length} {votesList.length === 1 ? 'Vote' : 'Votes'}</span>
                       </Button>
                     </div>
                   </div>
@@ -238,8 +239,9 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
             </Card>
           ) : (
             plannedActivities.map((act) => {
-              const userRsvp = act.rsvps.find((r) => r.userId === currentUser.id)?.status || 'maybe';
-              const goingCount = act.rsvps.filter((r) => r.status === 'going').length;
+              const rsvpList = act.rsvps || [];
+              const userRsvp = rsvpList.find((r) => r.userId === currentUser.id || (currentUser.name && r.userName === currentUser.name))?.status;
+              const goingCount = rsvpList.filter((r) => r.status === 'going').length;
 
               return (
                 <Card key={act.id}>
@@ -323,19 +325,25 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
                   <CardContent className="space-y-3">
                     <div className="grid grid-cols-3 gap-2 p-2.5 rounded-lg border border-border bg-muted/40 text-center">
                       <div>
-                        <div className="text-[10px] text-zinc-400">Est. Total Bill</div>
+                        <div className="text-[10px] text-zinc-400">
+                          {act.status === 'completed' ? 'Final Bill Paid' : 'Est. Total Bill'}
+                        </div>
                         <div className="text-xs font-mono font-medium text-zinc-900 dark:text-zinc-100">
-                          {formatPKR(act.estimatedTotalBudget)}
+                          {formatPKR(act.actualBillAmount || act.estimatedTotalBudget)}
                         </div>
                       </div>
                       <div>
-                        <div className="text-[10px] text-zinc-400">TRF Pool Share</div>
+                        <div className="text-[10px] text-zinc-400">
+                          {act.status === 'completed' ? 'TRF Fund Paid' : 'TRF Pool Share'}
+                        </div>
                         <div className="text-xs font-mono font-medium text-zinc-900 dark:text-zinc-100">
                           {formatPKR(act.trfContributionShare)}
                         </div>
                       </div>
                       <div>
-                        <div className="text-[10px] text-zinc-400">Member Share / Head</div>
+                        <div className="text-[10px] text-zinc-400">
+                          {act.status === 'completed' ? 'Member Share / Head' : 'Est. Share / Head'}
+                        </div>
                         <div className="text-xs font-mono font-medium text-zinc-900 dark:text-zinc-100">
                           {formatPKR(act.personalContributionPerHead)}
                         </div>
@@ -345,7 +353,7 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
                       <div className="flex items-center gap-1.5 text-xs text-zinc-500">
                         <Users className="h-3.5 w-3.5" />
-                        <span><strong>{goingCount} Going</strong> ({act.rsvps.length} invited)</span>
+                        <span><strong>{goingCount} Going</strong> ({rsvpList.length} responded)</span>
                       </div>
 
                       <div className="flex items-center gap-1">
@@ -353,7 +361,7 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
                         <Button
                           variant={userRsvp === 'going' ? 'default' : 'outline'}
                           size="sm"
-                          className="h-7 text-xs"
+                          className={`h-7 text-xs ${userRsvp === 'going' ? 'bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900 font-semibold' : ''}`}
                           onClick={() => updateRSVP(act.id, 'going')}
                         >
                           Going
@@ -361,7 +369,7 @@ export function ActivitiesVenuesView({ onOpenAddVenue }: ActivitiesVenuesViewPro
                         <Button
                           variant={userRsvp === 'maybe' ? 'secondary' : 'outline'}
                           size="sm"
-                          className="h-7 text-xs"
+                          className={`h-7 text-xs ${userRsvp === 'maybe' ? 'font-semibold border-zinc-400 dark:border-zinc-500' : ''}`}
                           onClick={() => updateRSVP(act.id, 'maybe')}
                         >
                           Maybe
