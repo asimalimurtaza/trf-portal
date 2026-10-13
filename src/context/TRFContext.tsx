@@ -1585,7 +1585,7 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const createAuditClaim = (data: {
+  const createAuditClaim = async (data: {
     monthYear: string;
     headcount: number;
     claimRefNumber?: string;
@@ -1593,76 +1593,160 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
   }) => {
     if (!isManager) return;
     const totalAmount = data.headcount * monthlyPerHeadRate;
+    const claimUuid = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `claim-${Date.now()}`;
+    const submissionDate = new Date().toISOString().split('T')[0];
+    const claimRef = data.claimRefNumber || `TRF-AUD-${Date.now().toString().slice(-4)}`;
+    const notes = data.auditNotes || `Monthly claim for ${data.headcount} active heads.`;
+
     const newClaim: AuditClaim = {
-      id: `claim-${Date.now()}`,
+      id: claimUuid,
       monthYear: data.monthYear,
       headcount: data.headcount,
       ratePerHead: monthlyPerHeadRate,
       totalAmount,
       status: 'submitted',
-      submissionDate: new Date().toISOString().split('T')[0],
-      claimRefNumber: data.claimRefNumber || `TRF-AUD-${Date.now().toString().slice(-4)}`,
-      auditNotes: data.auditNotes || `Monthly claim for ${data.headcount} active heads.`,
-      submittedBy: currentUser.name,
+      submissionDate,
+      claimRefNumber: claimRef,
+      auditNotes: notes,
+      submittedBy: currentUser.name || 'TRF Manager',
     };
     setClaims((prev) => [newClaim, ...prev]);
 
     if (isSupabaseConfigured && supabase) {
-      supabase.from('audit_claims').insert([
-        {
+      try {
+        const payload: Record<string, any> = {
           month_year: data.monthYear,
           headcount: data.headcount,
           rate_per_head: monthlyPerHeadRate,
           status: 'submitted',
-          claim_ref_number: newClaim.claimRefNumber,
-          audit_notes: newClaim.auditNotes,
+          submission_date: submissionDate,
+          claim_ref_number: claimRef,
+          audit_notes: notes,
+        };
+        if (isValidUuid(claimUuid)) {
+          payload.id = claimUuid;
         }
-      ]).then(({ error }) => {
-        if (error) console.log('Supabase sync note:', error.message);
-      });
+        if (isValidUuid(currentUser.id)) {
+          payload.submitted_by = currentUser.id;
+        }
+
+        const { data: inserted, error } = await supabase.from('audit_claims').insert([payload]).select();
+        if (error) {
+          console.error('Supabase audit_claims insert error:', error.message);
+        } else if (inserted && inserted[0]) {
+          const row = inserted[0];
+          setClaims((prev) =>
+            prev.map((c) =>
+              c.id === claimUuid
+                ? {
+                    ...c,
+                    id: row.id,
+                    totalAmount: Number(row.total_amount || c.totalAmount),
+                  }
+                : c
+            )
+          );
+        }
+      } catch (err) {
+        console.error('Exception inserting audit claim:', err);
+      }
     }
   };
 
-  const updateClaimStatus = (claimId: string, status: ClaimStatus) => {
+  const updateClaimStatus = async (claimId: string, status: ClaimStatus) => {
     if (!isManager) return;
+    const disbursedDate = status === 'approved_disbursed' ? new Date().toISOString().split('T')[0] : null;
 
+    let targetClaim: AuditClaim | undefined;
     setClaims((prev) =>
       prev.map((c) => {
         if (c.id === claimId) {
           const updated: AuditClaim = {
             ...c,
             status,
-            disbursedDate: status === 'approved_disbursed' ? new Date().toISOString().split('T')[0] : c.disbursedDate,
+            disbursedDate: disbursedDate || c.disbursedDate,
           };
-
-          // If changing to approved_disbursed, automatically create an inflow transaction!
-          if (status === 'approved_disbursed' && c.status !== 'approved_disbursed') {
-            addTransaction({
-              title: `Company TRF Allowance - ${c.monthYear}`,
-              description: `${c.headcount} team heads @ 1,400 PKR disbursed via Audit`,
-              amount: c.totalAmount,
-              type: 'inflow',
-              category: 'company_claim',
-              date: new Date().toISOString().split('T')[0],
-            });
-            triggerCelebration();
-          }
-
+          targetClaim = updated;
           return updated;
         }
         return c;
       })
     );
 
+    // If changing to approved_disbursed, automatically create an inflow transaction (only if not already recorded)
+    if (targetClaim && status === 'approved_disbursed') {
+      const alreadyLogged = transactions.some(
+        (t) =>
+          t.category === 'company_claim' &&
+          (t.title.toLowerCase().includes(targetClaim!.monthYear.toLowerCase()) ||
+            (t.description && t.description.toLowerCase().includes(targetClaim!.monthYear.toLowerCase())))
+      );
+
+      if (!alreadyLogged) {
+        await addTransaction({
+          title: `Company TRF Allowance - ${targetClaim.monthYear}`,
+          description: `${targetClaim.headcount} team heads @ 1,400 PKR disbursed via Audit`,
+          amount: targetClaim.totalAmount,
+          type: 'inflow',
+          category: 'company_claim',
+          date: disbursedDate || new Date().toISOString().split('T')[0],
+        });
+        triggerCelebration();
+      }
+    }
+
     if (isSupabaseConfigured && supabase) {
-      supabase.from('audit_claims').update({
-        status,
-        disbursed_date: status === 'approved_disbursed' ? new Date().toISOString().split('T')[0] : null,
-      }).eq('id', claimId).then();
+      try {
+        if (isValidUuid(claimId)) {
+          const { error } = await supabase
+            .from('audit_claims')
+            .update({
+              status,
+              disbursed_date: disbursedDate,
+            })
+            .eq('id', claimId);
+          if (error) console.error('Supabase updateClaimStatus error:', error.message);
+        } else if (targetClaim) {
+          // If legacy claim without valid UUID, check matching record by month_year or insert
+          const { data: existing } = await supabase
+            .from('audit_claims')
+            .select('id')
+            .eq('month_year', targetClaim.monthYear)
+            .limit(1);
+
+          if (existing && existing.length > 0) {
+            const realId = existing[0].id;
+            await supabase.from('audit_claims').update({
+              status,
+              disbursed_date: disbursedDate,
+            }).eq('id', realId);
+            setClaims((prev) => prev.map((c) => (c.id === claimId ? { ...c, id: realId } : c)));
+          } else {
+            const newUuid = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined;
+            const insertPayload: Record<string, any> = {
+              month_year: targetClaim.monthYear,
+              headcount: targetClaim.headcount,
+              rate_per_head: targetClaim.ratePerHead,
+              status,
+              submission_date: targetClaim.submissionDate || new Date().toISOString().split('T')[0],
+              disbursed_date: disbursedDate,
+              claim_ref_number: targetClaim.claimRefNumber,
+              audit_notes: targetClaim.auditNotes,
+            };
+            if (newUuid) insertPayload.id = newUuid;
+            const { data: inserted } = await supabase.from('audit_claims').insert([insertPayload]).select();
+            if (inserted && inserted[0]) {
+              setClaims((prev) => prev.map((c) => (c.id === claimId ? { ...c, id: inserted[0].id } : c)));
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Exception updating claim status:', err);
+      }
     }
   };
 
-  const updateClaim = (
+  const updateClaim = async (
     claimId: string,
     data: {
       monthYear?: string;
@@ -1673,11 +1757,20 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
     }
   ) => {
     if (!isManager) return;
+    let oldStatus: ClaimStatus | undefined;
+    let updatedClaimObj: AuditClaim | undefined;
+
     setClaims((prev) =>
       prev.map((c) => {
         if (c.id === claimId) {
+          oldStatus = c.status;
           const newHeadcount = data.headcount !== undefined ? data.headcount : c.headcount;
           const newStatus = data.status || c.status;
+          const isNowDisbursed = newStatus === 'approved_disbursed';
+          const newDisbursedDate = isNowDisbursed
+            ? (c.disbursedDate || new Date().toISOString().split('T')[0])
+            : (newStatus === 'draft' || newStatus === 'rejected' ? undefined : c.disbursedDate);
+
           const updated: AuditClaim = {
             ...c,
             monthYear: data.monthYear || c.monthYear,
@@ -1686,43 +1779,95 @@ export function TRFProvider({ children }: { children: React.ReactNode }) {
             claimRefNumber: data.claimRefNumber !== undefined ? data.claimRefNumber : c.claimRefNumber,
             auditNotes: data.auditNotes !== undefined ? data.auditNotes : c.auditNotes,
             status: newStatus,
-            disbursedDate: newStatus === 'approved_disbursed' ? (c.disbursedDate || new Date().toISOString().split('T')[0]) : c.disbursedDate,
+            disbursedDate: newDisbursedDate,
           };
-
-          if (newStatus === 'approved_disbursed' && c.status !== 'approved_disbursed') {
-            addTransaction({
-              title: `Company TRF Allowance - ${updated.monthYear}`,
-              description: `${updated.headcount} team heads @ 1,400 PKR disbursed via Audit`,
-              amount: updated.totalAmount,
-              type: 'inflow',
-              category: 'company_claim',
-              date: new Date().toISOString().split('T')[0],
-            });
-            triggerCelebration();
-          }
-
+          updatedClaimObj = updated;
           return updated;
         }
         return c;
       })
     );
 
+    if (updatedClaimObj && data.status === 'approved_disbursed' && oldStatus !== 'approved_disbursed') {
+      await addTransaction({
+        title: `Company TRF Allowance - ${updatedClaimObj.monthYear}`,
+        description: `${updatedClaimObj.headcount} team heads @ 1,400 PKR disbursed via Audit`,
+        amount: updatedClaimObj.totalAmount,
+        type: 'inflow',
+        category: 'company_claim',
+        date: updatedClaimObj.disbursedDate || new Date().toISOString().split('T')[0],
+      });
+      triggerCelebration();
+    }
+
     if (isSupabaseConfigured && supabase) {
-      const payload: Record<string, any> = {};
-      if (data.monthYear) payload.month_year = data.monthYear;
-      if (data.headcount !== undefined) payload.headcount = data.headcount;
-      if (data.claimRefNumber !== undefined) payload.claim_ref_number = data.claimRefNumber;
-      if (data.auditNotes !== undefined) payload.audit_notes = data.auditNotes;
-      if (data.status) payload.status = data.status;
-      supabase.from('audit_claims').update(payload).eq('id', claimId).then();
+      try {
+        const payload: Record<string, any> = {};
+        if (data.monthYear) payload.month_year = data.monthYear;
+        if (data.headcount !== undefined) payload.headcount = data.headcount;
+        if (data.claimRefNumber !== undefined) payload.claim_ref_number = data.claimRefNumber;
+        if (data.auditNotes !== undefined) payload.audit_notes = data.auditNotes;
+        if (data.status) {
+          payload.status = data.status;
+          payload.disbursed_date = updatedClaimObj?.disbursedDate || null;
+        }
+
+        if (isValidUuid(claimId)) {
+          const { error } = await supabase.from('audit_claims').update(payload).eq('id', claimId);
+          if (error) console.error('Supabase updateClaim error:', error.message);
+        } else if (updatedClaimObj) {
+          const { data: existing } = await supabase
+            .from('audit_claims')
+            .select('id')
+            .eq('month_year', updatedClaimObj.monthYear)
+            .limit(1);
+
+          if (existing && existing.length > 0) {
+            const realId = existing[0].id;
+            await supabase.from('audit_claims').update(payload).eq('id', realId);
+            setClaims((prev) => prev.map((c) => (c.id === claimId ? { ...c, id: realId } : c)));
+          } else {
+            const newUuid = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined;
+            const insertPayload: Record<string, any> = {
+              ...payload,
+              month_year: updatedClaimObj.monthYear,
+              headcount: updatedClaimObj.headcount,
+              rate_per_head: updatedClaimObj.ratePerHead,
+              status: updatedClaimObj.status,
+              submission_date: updatedClaimObj.submissionDate || new Date().toISOString().split('T')[0],
+              disbursed_date: updatedClaimObj.disbursedDate,
+              claim_ref_number: updatedClaimObj.claimRefNumber,
+              audit_notes: updatedClaimObj.auditNotes,
+            };
+            if (newUuid) insertPayload.id = newUuid;
+            const { data: inserted } = await supabase.from('audit_claims').insert([insertPayload]).select();
+            if (inserted && inserted[0]) {
+              setClaims((prev) => prev.map((c) => (c.id === claimId ? { ...c, id: inserted[0].id } : c)));
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Exception updating claim in Supabase:', err);
+      }
     }
   };
 
-  const deleteClaim = (claimId: string) => {
+  const deleteClaim = async (claimId: string) => {
     if (!isManager) return;
+    const target = claims.find((c) => c.id === claimId);
     setClaims((prev) => prev.filter((c) => c.id !== claimId));
+
     if (isSupabaseConfigured && supabase) {
-      supabase.from('audit_claims').delete().eq('id', claimId).then();
+      try {
+        if (isValidUuid(claimId)) {
+          const { error } = await supabase.from('audit_claims').delete().eq('id', claimId);
+          if (error) console.error('Supabase deleteClaim error:', error.message);
+        } else if (target) {
+          await supabase.from('audit_claims').delete().eq('month_year', target.monthYear);
+        }
+      } catch (err) {
+        console.error('Exception deleting claim in Supabase:', err);
+      }
     }
   };
 
