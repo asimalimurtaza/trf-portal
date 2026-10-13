@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useTRF } from '@/context/TRFContext';
 import { formatPKR, formatDate } from '@/lib/utils';
-import { Plus, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, FileText } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/table';
 import { ClaimStatus, AuditClaim } from '@/types/trf';
 import { EditClaimModal } from '@/components/modals/EditClaimModal';
+import { ClaimFormPDFModal } from '@/components/modals/ClaimFormPDFModal';
 import { motion } from 'framer-motion';
 
 interface AuditClaimsViewProps {
@@ -26,6 +27,7 @@ interface AuditClaimsViewProps {
 export function AuditClaimsView({ onOpenNewClaim }: AuditClaimsViewProps) {
   const { claims, isManager, updateClaimStatus, deleteClaim, activeHeadcount, monthlyPerHeadRate } = useTRF();
   const [editingClaim, setEditingClaim] = useState<AuditClaim | null>(null);
+  const [viewingFormClaim, setViewingFormClaim] = useState<AuditClaim | null>(null);
 
   const getStatusBadge = (status: ClaimStatus) => {
     switch (status) {
@@ -118,6 +120,17 @@ export function AuditClaimsView({ onOpenNewClaim }: AuditClaimsViewProps) {
                   {isManager && (
                     <TableCell className="text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setViewingFormClaim(claim)}
+                          className="h-7 text-xs gap-1 border-sky-300 text-sky-700 hover:bg-sky-50 dark:border-sky-800 dark:text-sky-300 dark:hover:bg-sky-950/30"
+                          title="Generate official Vicenna TRF Claim Form PDF"
+                        >
+                          <FileText className="h-3 w-3" />
+                          <span>Claim Form</span>
+                        </Button>
+
                         {claim.status === 'submitted' && (
                           <Button
                             size="sm"
@@ -167,6 +180,13 @@ export function AuditClaimsView({ onOpenNewClaim }: AuditClaimsViewProps) {
         claim={editingClaim}
         isOpen={Boolean(editingClaim)}
         onClose={() => setEditingClaim(null)}
+      />
+
+      {/* Official Vicenna TRF Claim Form PDF Modal */}
+      <ClaimFormPDFModal
+        claim={viewingFormClaim}
+        isOpen={Boolean(viewingFormClaim)}
+        onClose={() => setViewingFormClaim(null)}
       />
     </motion.div>
   );
